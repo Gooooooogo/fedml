@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-from torchvision import datasets, transforms,models
+from torchvision import datasets, transforms, models
 import copy
 import argparse
 
@@ -38,19 +38,17 @@ class Net(nn.Module):
         x = self.fc2(x)
         return x
 
+
 class Server():
-    def __init__(self, object, learning_rate, momentum, nesterov):
+    def __init__(self, object, learning_rate, momentum, nesterov, device):
         self.clients={}
         self.global_model= object
+        self.global_model.to(device)
         self.global_optimizer=optim.SGD(self.global_model.parameters(), lr=learning_rate, momentum=momentum, nesterov= nesterov)
         self.learning_rate=learning_rate
         self.momentum=momentum
         self.nesterov=nesterov
-        if torch.cuda.is_available():
-            self.device = torch.device("cuda")
-        else:
-            self.device= torch.device("cpu")
-        self.global_model.to(self.device)
+        self.device=device
     def register(self,client):
           self.clients[client.id]= client
           client.registered= True
@@ -76,7 +74,7 @@ class Server():
         #set global_model's params
         idx=0
         for key in self.global_model.state_dict().keys():
-            averaged_weights[key]= average_list[idx]
+            averaged_weights[key]= average_list[idx].to(self.device)
             idx+=1
         self.global_model.load_state_dict(averaged_weights)
 
@@ -99,8 +97,7 @@ class Server():
                     if momentum != 0:
                         self.global_optimizer.state[p]['momentum_buffer']= torch.clone(column_means[idx]).detach()
                         idx+=1
-
-    # train
+# train
     def local_train(self, client_id):
         client=self.clients[client_id]
         client.local_model = copy.deepcopy(self.global_model)
@@ -108,42 +105,44 @@ class Server():
         client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
         client.local_model.to(self.device)
         for batch_idx, (data, target) in enumerate(client.data): #note: batch_idx start from 0
+            data.to(self.device)
+            target.to(self.device)
             if batch_idx >= client.local_round:
-               break
+                break
             client.local_optimizer.zero_grad()
             output = client.local_model(data.to(self.device))
+          
             loss = nn.CrossEntropyLoss()(output.to(self.device), target.to(self.device))
             loss.to(self.device)
             loss.backward()
             client.local_optimizer.step()
         #print(id(client)==id(self.clients[client_id]))
         #print(client.local_optimizer.state)
+    def accuracy(self, model,test_loader):
+        model.eval()
+        correct = 0 
+        total = 0
+        # with torch.no_grad():
+        #     for data, target in test_loader:
+        #         output = model(data)
+        #         _, predicted = torch.max(output.data, 1)
+        #         total += target.size(0)
+        #         correct += (predicted == target).sum().item()
+        # print(f" Accuracy: {100 * correct / total:.2f}%")
+        with torch.no_grad():
+            for data in test_loader:
+                images, labels = data
+                images, labels = images.to(self.device), labels.to(self.device)  # 将数据移动到 GPU 上
+                outputs = model(images)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+
+        accuracy = 100 * correct / total
+        print(accuracy)
 
 
 
-           
-
-
-
-
-
-
-
-
-class Client:
-    def __init__(self, id ,data, local_round):
-        self.id=id
-        self.data=data
-        self.local_model = torch.tensor(0)
-        self.local_optimizer =  0
-        self.registered = False
-        self.local_round=local_round
-
-        if torch.cuda.is_available():
-            self.device = torch.device("cuda")
-        else:
-            self.device= torch.device("cpu")
-        self.local_model.to(self.device)
 
 
 def average(list):
@@ -152,21 +151,6 @@ def average(list):
     return averages
 
 
-def accuracy(model,test_loader):
-    if torch.cuda.is_available():
-            device = torch.device("cuda")
-    else:
-            device= torch.device("cpu")
-    model.eval()
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        for data, target in test_loader:        
-            output = model(data.to(device))
-            _, predicted = torch.max(output.data, 1)
-            total += target.size(0)
-            correct += (predicted == target.to(device)).sum().item()
-    print(f" Accuracy: {100 * correct / total:.2f}%")
 
 
 def select_model(model_type):
@@ -193,11 +177,34 @@ def select_model(model_type):
         test_dataset = datasets.CIFAR10(root='./data', train=False, transform=transform, download=True)
         return model, train_dataset, test_dataset
     return model, train_dataset, test_dataset
+def choose_device():
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+    return device
+
+
+class Client:
+    def __init__(self, id ,data, local_round, device):
+        self.id=id
+        self.data=data
+        self.local_model = torch.tensor(0)
+        self.local_model.to(device)
+        self.local_optimizer =  0
+        self.registered = False
+        self.local_round=local_round
+        self.device=device
+
+
+
 
 
 def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size):
     # Load MNIST dataset
+    device=choose_device()
     model, train_dataset, test_dataset= select_model(model_type)
+    model.to(device)
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
     data_per_client = len(train_dataset) // num_clients
@@ -213,12 +220,12 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
         train_loaders.append(train_loader)
     #server and client
     model=copy.deepcopy(model)
-    
-    server=Server(model, learning_rate, momentum, nesterov)
-    client1= Client(id= 'client1',data=train_loaders[0],local_round=local_round)
-    client2= Client(id= 'client2',data=train_loaders[1],local_round=local_round)
-    client3= Client(id= 'client3',data=train_loaders[2],local_round=local_round)
-    client4= Client(id= 'client4',data=train_loaders[3],local_round=local_round)
+    model.to(device)
+    server=Server(model, learning_rate, momentum, nesterov, device)
+    client1= Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
+    client2= Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
+    client3= Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
+    client4= Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
     server.register(client1)
     server.register(client2)
     server.register(client3)
@@ -229,31 +236,6 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
           server.local_train('client3')
           server.local_train('client4')
           server.fednag()
-          accuracy(server.global_model,test_loader)
+          server.accuracy(server.global_model,test_loader)
 
-
-if __name__ == "__main__":
-#     parser = argparse.ArgumentParser()
-#     parser = argparse.ArgumentParser(description="")
-#     parser.add_argument("--model_type", choices=['linear', 'other_model'], required=True, help="Specify the model type")
-#     parser.add_argument("--learning_rate", type=float, default=0.001, help="Learning rate")
-#     parser.add_argument("--momentum", type=float, default=0.7, help="Momentum")
-#     parser.add_argument("--nesterov", action="store_true", help="Enable Nesterov acceleration")
-#     parser.add_argument("--num_rounds", type=int, default=25, help="Number of training rounds")
-#     parser.add_argument("--local_round", type=int, default=5, help="Number of local training rounds")
-#     parser.add_argument("--num_clients", type=int, default=4, help="Number of clients")
-#     parser.add_argument("--batch_size", type=int, default=64, help="Batch size")
-
-#     args = parser.parse_args()
-#     main(args.model_type,args.learning_rate, args.momentum, args.nesterov ,args.num_rounds, args.local_round, args.num_clients,args.batch_size)
-    main('VGG16',0.001,0.7,True,5,64,4,64)
-# # #args
-# nesterov=True
-# momentum=0.7
-# num_clients = 4
-# num_rounds = 25
-# batch_size = 64
-# learning_rate = 0.01
-# local_round = 5
-#model,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients 
-# --model linear --learning_rate 0.01 --momentum 0.7 --nesterov --num_rounds 5 --local_round 5 --num_clients 4 --batch_size 64
+main('linear',0.01,0.7,True,100,64,4,64)
