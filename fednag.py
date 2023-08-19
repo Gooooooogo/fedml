@@ -100,15 +100,16 @@ class Server():
         for batch_idx, (data, target) in enumerate(client.data): #note: batch_idx start from 0
             data.to(self.device)
             target.to(self.device)
-            if batch_idx >= client.local_round:
+            if batch_idx >= client.trained_idx and  batch_idx< client.trained_idx+client.local_round:
+                client.local_optimizer.zero_grad()
+                output = client.local_model(data.to(self.device))
+                loss = nn.CrossEntropyLoss()(output.to(self.device), target.to(self.device))
+                loss.to(self.device)
+                loss.backward()
+                client.local_optimizer.step()
+            if batch_idx == client.trained_idx+client.local_round: 
+                client.trained_idx +=client.local_round
                 break
-            client.local_optimizer.zero_grad()
-            output = client.local_model(data.to(self.device))
-          
-            loss = nn.CrossEntropyLoss()(output.to(self.device), target.to(self.device))
-            loss.to(self.device)
-            loss.backward()
-            client.local_optimizer.step()
         #print(id(client)==id(self.clients[client_id]))
         #print(client.local_optimizer.state)
     def accuracy(self, model,test_loader):
@@ -144,6 +145,7 @@ class Client:
         self.registered = False
         self.local_round=local_round
         self.device=device
+        self.trained_idx=0
 
 
 
