@@ -141,6 +141,16 @@ class Server():
         accuracy = 100 * correct / total
         print(accuracy)
 
+class Client:
+    def __init__(self, id ,data, local_round, device):
+        self.id=id
+        self.data=data
+        self.local_model = torch.tensor(0)
+        self.local_model.to(device)
+        self.local_optimizer =  0
+        self.registered = False
+        self.local_round=local_round
+        self.device=device
 
 
 
@@ -177,6 +187,7 @@ def select_model(model_type):
         test_dataset = datasets.CIFAR10(root='./data', train=False, transform=transform, download=True)
         return model, train_dataset, test_dataset
     return model, train_dataset, test_dataset
+
 def choose_device():
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -185,16 +196,6 @@ def choose_device():
     return device
 
 
-class Client:
-    def __init__(self, id ,data, local_round, device):
-        self.id=id
-        self.data=data
-        self.local_model = torch.tensor(0)
-        self.local_model.to(device)
-        self.local_optimizer =  0
-        self.registered = False
-        self.local_round=local_round
-        self.device=device
 
 
 
@@ -238,4 +239,21 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
           server.fednag()
           server.accuracy(server.global_model,test_loader)
 
-main('linear',0.01,0.7,True,100,64,4,64)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument("--model_type", choices=['linear', 'VGG16'], required=True, help="Specify the model type")
+    parser.add_argument("--learning_rate", type=float, help="Learning rate")
+    parser.add_argument("--momentum", type=float, help="Momentum")
+    parser.add_argument("--nesterov", action="store_true", help="Enable Nesterov acceleration")
+    parser.add_argument("--num_rounds", type=int,  help="Number of training rounds")
+    parser.add_argument("--local_round", type=int, help="Number of local training rounds")
+    parser.add_argument("--num_clients", type=int, help="Number of clients")
+    parser.add_argument("--batch_size", type=int,  help="Batch size")
+
+    args = parser.parse_args()
+    main(args.model_type,args.learning_rate, args.momentum, args.nesterov ,args.num_rounds, args.local_round, args.num_clients,args.batch_size)
+
+
+
