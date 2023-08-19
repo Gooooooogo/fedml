@@ -2,7 +2,7 @@
 
 main('linear',0.01,0.7,True,100,64,4,64)
 
-python fednag_test  --model VGG16 --learning_rate 0.001 --momentum 0.7 --nesterov --num_rounds 5 --local_round 32 --num_clients 4 --batch_size 64
+python fednag.py  --model VGG16 --learning_rate 0.001 --momentum 0.7 --nesterov --num_rounds 1 --local_round 32 --num_clients 4 --batch_size 64
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
