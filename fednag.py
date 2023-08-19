@@ -108,7 +108,7 @@ class Server():
                 loss.backward()
                 client.local_optimizer.step()
             if batch_idx == client.trained_idx+client.local_round: 
-                client.trained_idx +=client.local_round
+                client.trained_idx += batch_idx
                 break
         #print(id(client)==id(self.clients[client_id]))
         #print(client.local_optimizer.state)
