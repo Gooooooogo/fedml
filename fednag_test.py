@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import csv
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -42,6 +43,8 @@ class Server():
         self.momentum=momentum
         self.nesterov=nesterov
         self.device=device
+        self.current_global_round=0
+        self.acc=0
     def register(self,client):
           self.clients[client.id]= client
           client.registered= True
@@ -91,31 +94,68 @@ class Server():
                         self.global_optimizer.state[p]['momentum_buffer']= torch.clone(column_means[idx]).detach()
                         idx+=1
 # train
+    # def local_train_old(self, client_id):
+    #     client=self.clients[client_id]
+    #     client.local_model = copy.deepcopy(self.global_model)
+    #     client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= 'True')
+    #     client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
+    #     client.local_model.to(self.device)
+    #     for batch_idx, (data, target) in enumerate(client.data): #note: batch_idx start from 0
+    #         data.to(self.device)
+    #         target.to(self.device)
+    #         if batch_idx >= client.trained_idx and  batch_idx< client.trained_idx+client.local_round:
+    #             client.local_optimizer.zero_grad()
+    #             output = client.local_model(data.to(self.device))
+    #             loss = nn.CrossEntropyLoss()(output.to(self.device), target.to(self.device))
+    #             loss.to(self.device)
+    #             loss.backward()
+    #             client.local_optimizer.step()
+    #         if batch_idx == client.trained_idx+client.local_round: 
+    #             client.trained_idx =batch_idx
+    #             break
+
     def local_train(self, client_id):
-        client=self.clients[client_id]
-        client.local_model = copy.deepcopy(self.global_model)
-        client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= 'True')
-        client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
-        client.local_model.to(self.device)
-        for batch_idx, (data, target) in enumerate(client.data): #note: batch_idx start from 0
-            data.to(self.device)
-            target.to(self.device)
-            if batch_idx >= client.trained_idx and  batch_idx< client.trained_idx+client.local_round:
-                client.local_optimizer.zero_grad()
-                output = client.local_model(data.to(self.device))
-                loss = nn.CrossEntropyLoss()(output.to(self.device), target.to(self.device))
-                loss.to(self.device)
-                loss.backward()
-                client.local_optimizer.step()
-            if batch_idx == client.trained_idx+client.local_round: 
-                client.trained_idx =batch_idx
-                break
-        #print(id(client)==id(self.clients[client_id]))
-        #print(client.local_optimizer.state)
+            
+            client=self.clients[client_id]
+            client.local_model = copy.deepcopy(self.global_model)
+            client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= 'True')
+            client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
+            client.local_model.to(self.device)
+            data_iter=iter(client.data)
+            criterion = nn.CrossEntropyLoss()
+            ## note
+            ## for epoch in local_round:
+            ##      train 1 time then iterate
+            ##      then break
+            ##      if iterate all then initialize data_iter and trained_idx
+            for epoch in range(client.local_round):
+                
+                for (data, target) in data_iter:
+                    client.trained_idx+=1
+                    client.trained_nums+=1
+                    client.local_optimizer.zero_grad()
+                    output = client.local_model(data.to(self.device))
+                    loss = criterion(output.to(self.device), target.to(self.device))
+                    loss.to(self.device)
+                    loss.backward()
+                    client.local_optimizer.step() 
+                    if client.trained_idx == len(client.data):
+                        data_iter=iter(client.data)
+                        client.trained_idx=0
+                    break
+            loss_sum=0
+            with torch.no_grad():
+                    for (data, target) in client.data:   
+                            output = client.local_model(data.to(self.device))
+                            batch_loss = criterion(output.to(self.device), target.to(self.device))
+                            loss_sum += batch_loss.item()
+                    client.loss=loss_sum
+
     def accuracy(self, model,test_loader):
         model.eval()
         correct = 0 
         total = 0
+        criterion = nn.CrossEntropyLoss()
         # with torch.no_grad():
         #     for data, target in test_loader:
         #         output = model(data)
@@ -123,6 +163,7 @@ class Server():
         #         total += target.size(0)
         #         correct += (predicted == target).sum().item()
         # print(f" Accuracy: {100 * correct / total:.2f}%")
+        loss_sum=0
         with torch.no_grad():
             for data in test_loader:
                 images, labels = data
@@ -132,8 +173,66 @@ class Server():
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
 
+                batch_loss = criterion(outputs, labels)
+                loss_sum += batch_loss.item()
+
         accuracy = 100 * correct / total
+        self.acc=accuracy
+        self.loss=loss_sum
         print(accuracy)
+        
+
+    def result(self):
+        current_global_round=self.current_global_round
+        client_list=list(self.clients.values())
+        current_iteration= sum([i.trained_nums for i in client_list])
+        average_training_loss = sum([i.loss/len(client_list) for i in client_list])
+        test_loss= self.loss
+        accuracy= self.acc
+
+        data = {
+        "current_global_round": current_global_round,
+        "current_iteration": current_iteration,
+        "average_training_loss": average_training_loss,
+        "test_loss": test_loss,
+        "accuracy": accuracy
+        }
+        csv_filename = "result.csv"
+        with open(csv_filename, "a", newline="") as csvfile:
+            fieldnames = data.keys()
+            csv_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            
+            #csv_writer.writeheader()
+            csv_writer.writerow(data)
+
+        #return current_global_round, current_iteration, average_training_loss, test_loss, accuracy
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 class Client:
     def __init__(self, id ,data, local_round, device):
@@ -146,7 +245,8 @@ class Client:
         self.local_round=local_round
         self.device=device
         self.trained_idx=0
-
+        self.trained_nums=0
+        self.loss=0
 
 
 
@@ -201,6 +301,7 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
     device=choose_device()
     model, train_dataset, test_dataset= select_model(model_type)
     model.to(device)
+
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
     data_per_client = len(train_dataset) // num_clients
@@ -212,7 +313,7 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
         start_idx = i * data_per_client
         end_idx = (i + 1) * data_per_client
         subset_dataset = torch.utils.data.Subset(train_dataset, list(range(start_idx,end_idx)))
-        train_loader = torch.utils.data.DataLoader(dataset=subset_dataset, batch_size=batch_size, shuffle=True)
+        train_loader = torch.utils.data.DataLoader(dataset=subset_dataset, batch_size=batch_size, shuffle=False)
         train_loaders.append(train_loader)
     #server and client
     model=copy.deepcopy(model)
@@ -227,16 +328,18 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
     server.register(client3)
     server.register(client4)
     for i in range(num_rounds):
+          server.current_global_round=i
           server.local_train('client1')
           server.local_train('client2')
           server.local_train('client3')
           server.local_train('client4')
           server.fednag()
           server.accuracy(server.global_model,test_loader)
+          server.result()
 
 
 if __name__ == "__main__":
-    main('linear',0.01,0.7,True,3,64,4,64)
+    main('linear',0.01,0.7,True,3,40,4,64)
 
 
 

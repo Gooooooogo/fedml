@@ -1,3 +1,6 @@
+# 8-27 
+1.[local_train]  loacl round 作为 epoch, 每个epoch仅训练一次，将dataloader进行iter化，数据不shuffle。循环global_round时继续在dataloader里迭代
+2. fednag+VGG16; fednag+linear; fedavg+VGG16; fedavg+linear
 # fedml
 
 main('linear',0.01,0.7,True,100,64,4,64)
@@ -21,3 +24,11 @@ if __name__ == "__main__":
 
 
 
+excel里面要有当前global 轮数，当前一共多少local iteration，average training loss， test loss， 还有accuracy
+跑both fedavg和fednag 在cifar10和mnist数据库
+
+local round = 40
+momentum = 0.5
+learning rate = 0.01
+global round = 25
+batch size = 64

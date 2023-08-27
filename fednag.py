@@ -74,27 +74,28 @@ class Server():
 
         self.global_optimizer=optim.SGD(self.global_model.parameters(), lr=learning_rate, momentum=momentum, nesterov= nesterov)
         # momentum_buffer_list : [[]*len(self.clients)]
-        momentum_buffer_list = [[] for _ in range(len(self.clients))]
-        #get local_momentum_buffer
-        for clt , idx in zip(self.clients.values(), range(len(self.clients))):
-            for group in clt.local_optimizer.param_groups:
-                for p in group['params']:
-                    param_state = clt.local_optimizer.state[p]
-                    momentum_buffer_list[idx].append(torch.clone(param_state['momentum_buffer']).detach())
-        #average momentum_buffer
-        column_means = average(momentum_buffer_list)
-        # set global_momentum_buffer
-        idx=0
-        for group in self.global_optimizer.param_groups:
-                for p in group['params']:
-                    if momentum != 0:
-                        self.global_optimizer.state[p]['momentum_buffer']= torch.clone(column_means[idx]).detach()
-                        idx+=1
+        if self.momentum != 0:
+                momentum_buffer_list = [[] for _ in range(len(self.clients))]
+                #get local_momentum_buffer
+                for clt , idx in zip(self.clients.values(), range(len(self.clients))):
+                    for group in clt.local_optimizer.param_groups:
+                        for p in group['params']:
+                            param_state = clt.local_optimizer.state[p]
+                            momentum_buffer_list[idx].append(torch.clone(param_state['momentum_buffer']).detach())
+                #average momentum_buffer
+                column_means = average(momentum_buffer_list)
+                # set global_momentum_buffer
+                idx=0
+                for group in self.global_optimizer.param_groups:
+                        for p in group['params']:
+                            if momentum != 0:
+                                self.global_optimizer.state[p]['momentum_buffer']= torch.clone(column_means[idx]).detach()
+                                idx+=1
 # train
     def local_train(self, client_id):
         client=self.clients[client_id]
         client.local_model = copy.deepcopy(self.global_model)
-        client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= 'True')
+        client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= self.nesterov)
         client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
         client.local_model.to(self.device)
         for batch_idx, (data, target) in enumerate(client.data): #note: batch_idx start from 0
