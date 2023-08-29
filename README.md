@@ -1,3 +1,5 @@
+# 8-29
+every globl round 继续iter
 # 8-27 
 1.[local_train]  loacl round 作为 epoch, 每个epoch仅训练一次，将dataloader进行iter化，数据不shuffle。循环global_round时继续在dataloader里迭代
 2. fednag+VGG16; fednag+linear; fedavg+VGG16; fedavg+linear

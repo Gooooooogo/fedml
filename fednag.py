@@ -13,7 +13,7 @@ import argparse
 class Net1(nn.Module):
       def __init__(self):
           super(Net1, self).__init__()
-          self.fc= nn.Linear(784, 10)
+          self.fc= nn.Linear(784, 1)
       def forward(self, x):
           x = x.view(-1, 28*28)
           x = self.fc(x)
