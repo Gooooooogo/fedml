@@ -1,3 +1,5 @@
+
+
 # -*- coding: utf-8 -*-
 import csv
 import torch
@@ -8,74 +10,10 @@ from torchvision import datasets, transforms, models
 import copy
 import argparse
 import torch.nn.functional as F
-
-
-class Net1(nn.Module):
-      def __init__(self):
-          super(Net1, self).__init__()
-          self.fc= nn.Linear(784, 1)
-      def forward(self, x):
-          x = x.view(-1, 28*28)
-          x = self.fc(x)
-          return x
-
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.fc1 = nn.Linear(784, 256)
-        self.fc2 = nn.Linear(256, 10)
-
-    def forward(self, x):
-        x = x.view(-1, 28*28)
-        x = self.fc1(x)
-        x = self.fc2(x)
-        return x
-
-class LinearRegression(nn.Module):
-    def __init__(self):
-        super(LinearRegression, self).__init__()
-        self.linear = nn.Linear(784, 1)  # input and output is 1 dimension
-
-    def forward(self, x):
-        x = x.view(-1, 28*28)
-        output = self.linear(x)
-        output=output.squeeze()
-        return output
-
-class LogisticRegression(nn.Module):
-    def __init__(self):
-        super(LogisticRegression, self).__init__()
-        self.linear = nn.Linear(784, 10)
-
-    def forward(self, x):
-        x = x.view(-1, 28*28)
-        outputs = torch.sigmoid(self.linear(x))
-        return outputs
-
-class cnn(nn.Module):
-    def __init__(self):
-        super(cnn, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, 3, 1)
-        self.conv2 = nn.Conv2d(32, 64, 3, 1)
-        self.dropout1 = nn.Dropout2d(0.25)
-        self.dropout2 = nn.Dropout2d(0.5)
-        self.fc1 = nn.Linear(9216, 128)
-        self.fc2 = nn.Linear(128, 10)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = F.max_pool2d(x, 2)
-        x = self.dropout1(x)
-        x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.dropout2(x)
-        x = self.fc2(x)
-        output = F.log_softmax(x, dim=1)
-        return output
+import random
+from torch.utils.data import DataLoader, random_split ,TensorDataset
+import choose_datas
+import choose_models 
 
 
 
@@ -178,24 +116,30 @@ class Server():
             ##      then break
             ##      if iterate all then initialize data_iter and trained_idx
             loss=0
+            loss_sum=0
             for epoch in range(client.local_round):
 
-                for (data, target) in client.data_iter:
+                for (data, labels) in client.data_iter:
                     client.trained_idx+=1
                     client.trained_nums+=1
                     client.local_optimizer.zero_grad()
-                    data, target = data.to(self.device), target.to(self.device)
-                    #target=target.float()
+                    data, labels = data.to(self.device), labels.to(self.device)
                     output = client.local_model(data)
-                    loss = criterion(output, target)
+                    if self.loss_func.__class__.__name__== 'MSELoss':
+                        labels_one_hot = torch.zeros_like(output)
+                        labels_one_hot.scatter_(1, labels.view(-1, 1), 1.0)
+                        labels=labels_one_hot.float()
+                    loss = criterion(output, labels)
                     loss.to(self.device)
                     loss.backward()
                     client.local_optimizer.step()
+                    loss_sum+= loss.item()
                     if client.trained_idx == len(client.data):
                         client.data_iter=iter(client.data)
                         client.trained_idx=0
                     break
-            client.loss=loss.item()
+            client.loss =  loss.item()
+            #client.loss=loss_sum/client.local_round
 
 
 
@@ -209,6 +153,10 @@ class Server():
                 images, labels = images.to(self.device), labels.to(self.device)  # 将数据移动到 GPU 上
                 #labels= labels.float()
                 outputs = model(images)
+                if self.loss_func.__class__.__name__== 'MSELoss':
+                    labels_one_hot = torch.zeros_like(outputs)
+                    labels_one_hot.scatter_(1, labels.view(-1, 1), 1.0)
+                    labels= labels_one_hot.float()
                 batch_loss = criterion(outputs, labels)
                 loss_sum += batch_loss.item()
           return loss_sum
@@ -259,10 +207,12 @@ class Server():
     def loss_function(self,loss_func):
         if loss_func=='MSE':
             self.loss_func = torch.nn.MSELoss()
+
         elif loss_func=='CrossEntropy':
             self.loss_func = torch.nn.CrossEntropyLoss()
         elif loss_func=='nll_loss':
             self.loss_func = torch.nn.NLLLoss()
+
 
 
 
@@ -291,59 +241,6 @@ def average(list):
     averages = [sum(column) / len(column) for column in transposed]
     return averages
 
-
-
-
-def select_model(model_type):
-    model = None
-    train_dataset = None
-    test_dataset = None
-    if model_type =='linear':
-        model=LinearRegression()
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-        ])
-        train_dataset = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
-        test_dataset = datasets.MNIST(root='./data', train=False, transform=transform, download=True)
-        return model, train_dataset, test_dataset
-
-
-    elif model_type == 'VGG16':
-        model=models.vgg16()
-        model.classifier[6] = nn.Linear(4096, 10)
-        transform = transforms.Compose([transforms.RandomCrop(32, padding=4),
-                                        transforms.RandomHorizontalFlip(),
-                                        transforms.ToTensor(),
-                                        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-                                        ])
-        train_dataset = datasets.CIFAR10(root='./data', train=True, transform=transform, download=True)
-        test_dataset = datasets.CIFAR10(root='./data', train=False, transform=transform, download=True)
-        return model, train_dataset, test_dataset
-
-    elif model_type == 'log':
-        model=LogisticRegression()
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-        ])
-        train_dataset = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
-        test_dataset = datasets.MNIST(root='./data', train=False, transform=transform, download=True)
-        return model, train_dataset, test_dataset
-
-    elif model_type == 'cnn':
-          model=cnn()
-          transform = transforms.Compose([
-              transforms.ToTensor(),
-              transforms.Normalize((0.1307,), (0.3081,))
-          ])
-          train_dataset = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
-          test_dataset = datasets.MNIST(root='./data', train=False, transform=transform, download=True)
-          return model, train_dataset, test_dataset
-
-    return model, train_dataset, test_dataset
-
-
 def choose_device():
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -355,22 +252,16 @@ def choose_device():
 def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function):
     # Load MNIST dataset
     device=choose_device()
-    model, train_dataset, test_dataset= select_model(model_type)
+    model, train_dataset, test_dataset= choose_models.select_model(model_type)
     model.to(device)
-
-    train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
-    data_per_client = len(train_dataset) // num_clients
-
     # # Create data loaders for each client
+    client_datasets= choose_datas.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients )
     train_loaders = []
-
     for i in range(num_clients):
-        start_idx = i * data_per_client
-        end_idx = (i + 1) * data_per_client
-        subset_dataset = torch.utils.data.Subset(train_dataset, list(range(start_idx,end_idx)))
-        train_loader = torch.utils.data.DataLoader(dataset=subset_dataset, batch_size=batch_size, shuffle=False)
+        train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=False)
         train_loaders.append(train_loader)
+    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+
     #server and client
     model=copy.deepcopy(model)
     model.to(device)
@@ -384,6 +275,7 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
     server.register(client2)
     server.register(client3)
     server.register(client4)
+    print(server.loss_func.__class__.__name__=='MSELoss')
     for i in range(num_rounds):
           server.current_global_round=i
           server.local_train('client1')
@@ -398,9 +290,9 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
 
 if __name__ == "__main__":
     #main('VGG16',0.01,0.5,True,25,40,4,64)
-    #main('linear',0.01,0,False,25,40,4,64,'MSE')
+    main('linear',0.01,0,False,25,40,4,64,'MSE')
     #main('linear',0.01,0.05,True,25,40,4,64,'MSE')
-    main('log',0.01,0,False,25,40,4,64,'CrossEntropy')
-    main('log',0.01,0.5,True,25,40,4,64,'CrossEntropy')
-    main('cnn',0.01,0,False,25,40,4,64,'nll_loss')
-    main('cnn',0.01,0.5,True,25,40,4,64,'nll_loss')
+    # main('log',0.01,0,False,25,40,4,64,'CrossEntropy')
+    # main('log',0.01,0.5,True,25,40,4,64,'CrossEntropy')
+    # main('cnn',0.01,0,False,25,40,4,64,'nll_loss')
+    # main('cnn',0.01,0.5,True,25,40,4,64,'nll_loss')
