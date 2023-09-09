@@ -34,7 +34,15 @@ class Server():
           if client.id in self.clients:
               del self.clients[client.id]
               client.registered= False
-
+    def fednoavg(self):
+        idx=0
+        #shuffled_list = random.sample(list(self.clients.values()), len(list(self.clients.values())))
+        shuffled_list=list(self.clients.values())
+        shuffled_list.insert(0, shuffled_list.pop())
+        for key,value in self.clients.items():
+            self.clients[key].local_model=copy.deepcopy(shuffled_list[idx].local_model)
+            self.clients[key].local_optimizer=copy.deepcopy(shuffled_list[idx].local_optimizer)
+            idx+=1
 
     def fednag(self):
         learning_rate=self.learning_rate
@@ -97,13 +105,15 @@ class Server():
     #         if batch_idx == client.trained_idx+client.local_round:
     #             client.trained_idx =batch_idx
     #             break
+    def download_model(self, client_id):
+        client=self.clients[client_id]
+        client.local_model = copy.deepcopy(self.global_model)
+        client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= self.nesterov)
+        client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
+        client.local_model.to(self.device)
 
     def local_train(self, client_id):
-
             client=self.clients[client_id]
-            client.local_model = copy.deepcopy(self.global_model)
-            client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= self.nesterov)
-            client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
             client.local_model.to(self.device)
             criterion = self.loss_func
             ## note

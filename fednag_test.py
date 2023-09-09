@@ -44,7 +44,69 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
     server.register(client3)
     server.register(client4)
     print(server.loss_func.__class__.__name__=='MSELoss')
+    
     for i in range(num_rounds):
+          server.download_model('client1')
+          server.download_model('client2')
+          server.download_model('client3')
+          server.download_model('client4')
+          server.current_global_round=i
+          server.local_train('client1')
+          server.local_train('client2')
+          server.local_train('client3')
+          server.local_train('client4')
+          server.fednoavg()
+          server.local_train('client1')
+          server.local_train('client2')
+          server.local_train('client3')
+          server.local_train('client4')
+          server.fednoavg()
+          server.local_train('client1')
+          server.local_train('client2')
+          server.local_train('client3')
+          server.local_train('client4')
+          server.fednoavg()
+          server.local_train('client1')
+          server.local_train('client2')
+          server.local_train('client3')
+          server.local_train('client4')
+          server.fednag()
+          server.loss=server.get_loss(server.global_model,test_loader)
+          server.acc=server.get_accuracy(server.global_model,test_loader)
+          server.result()
+def main_nag(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function):
+    # Load MNIST dataset
+    device=tools.choose_device()
+    model, train_dataset, test_dataset= choose_models.select_model(model_type)
+    model.to(device)
+    # # Create data loaders for each client
+    client_datasets= choose_datas.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients )
+    train_loaders = []
+    for i in range(num_clients):
+        train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=False)
+        train_loaders.append(train_loader)
+    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+
+    #server and client
+    model=copy.deepcopy(model)
+    model.to(device)
+    server=fedserver.Server(model, learning_rate, momentum, nesterov, device )
+    server.loss_function(loss_function)
+    client1= fedclient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
+    client2= fedclient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
+    client3= fedclient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
+    client4= fedclient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
+    server.register(client1)
+    server.register(client2)
+    server.register(client3)
+    server.register(client4)
+    print(server.loss_func.__class__.__name__=='MSELoss')
+    
+    for i in range(num_rounds):
+          server.download_model('client1')
+          server.download_model('client2')
+          server.download_model('client3')
+          server.download_model('client4')
           server.current_global_round=i
           server.local_train('client1')
           server.local_train('client2')
@@ -55,12 +117,18 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
           server.acc=server.get_accuracy(server.global_model,test_loader)
           server.result()
 
-
 if __name__ == "__main__":
     #main('VGG16',0.01,0.5,True,25,40,4,64)
-    main('linear',0.01,0,False,25,40,4,64,'MSE')
+    #main('linear',0.01,0,False,25,10,4,64,'MSE')
     #main('linear',0.01,0.05,True,25,40,4,64,'MSE')
     # main('log',0.01,0,False,25,40,4,64,'CrossEntropy')
     # main('log',0.01,0.5,True,25,40,4,64,'CrossEntropy')
     # main('cnn',0.01,0,False,25,40,4,64,'nll_loss')
     # main('cnn',0.01,0.5,True,25,40,4,64,'nll_loss')
+
+
+
+    #main('linear',0.01,0,False,25,10*4,4,64,'MSE')
+    #main_nag('linear',0.01,0.05,True,25,10*4,4,64,'MSE')
+
+    main('cnn',0.01,0,False,25,10,4,64,'nll_loss')
