@@ -75,25 +75,17 @@ class cnn(nn.Module):
         output = F.log_softmax(x, dim=1)
         return output
 
-
-def select_model(model_type):
-    model = None
-    train_dataset = None
-    test_dataset = None
-    if model_type =='linear':
-        model=LinearRegression()
+def select_dataset(data_type):
+    train_dataset=None
+    test_dataset=None
+    if data_type=='mnist':
         transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.1307,), (0.3081,))
         ])
         train_dataset = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
         test_dataset = datasets.MNIST(root='./data', train=False, transform=transform, download=True)
-        return model, train_dataset, test_dataset
-
-
-    elif model_type == 'VGG16':
-        model=models.vgg16()
-        model.classifier[6] = nn.Linear(4096, 10)
+    if data_type=='cifar10':
         transform = transforms.Compose([transforms.RandomCrop(32, padding=4),
                                         transforms.RandomHorizontalFlip(),
                                         transforms.ToTensor(),
@@ -101,26 +93,27 @@ def select_model(model_type):
                                         ])
         train_dataset = datasets.CIFAR10(root='./data', train=True, transform=transform, download=True)
         test_dataset = datasets.CIFAR10(root='./data', train=False, transform=transform, download=True)
-        return model, train_dataset, test_dataset
+    
+    return train_dataset, test_dataset
+
+def select_model(model_type):
+
+    model = None
+    if model_type =='linear':
+        model=LinearRegression()
+        return model
 
     elif model_type == 'log':
         model=LogisticRegression()
-        transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-        ])
-        train_dataset = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
-        test_dataset = datasets.MNIST(root='./data', train=False, transform=transform, download=True)
-        return model, train_dataset, test_dataset
+        return model
 
     elif model_type == 'cnn':
           model=cnn()
-          transform = transforms.Compose([
-              transforms.ToTensor(),
-              transforms.Normalize((0.1307,), (0.3081,))
-          ])
-          train_dataset = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
-          test_dataset = datasets.MNIST(root='./data', train=False, transform=transform, download=True)
-          return model, train_dataset, test_dataset
+          return model
+    
+    elif model_type == 'vgg16':
+        model=models.vgg16()
+        model.classifier[6] = nn.Linear(4096, 10)
+        return model
 
-    return model, train_dataset, test_dataset
+    return model

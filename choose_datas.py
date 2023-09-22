@@ -1,4 +1,5 @@
 import csv
+import math
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,7 +11,8 @@ import torch.nn.functional as F
 import random
 from torch.utils.data import DataLoader, random_split ,TensorDataset
 
-
+#1.展示最后的分布
+#2. 不重复
 def data_distribution_0(dataset,num_classes,num_clients):
     client_datasets=[]
     data_splits = random_split(dataset, [len(dataset)//num_clients]*num_clients)
@@ -18,48 +20,47 @@ def data_distribution_0(dataset,num_classes,num_clients):
         client_datasets.append(data_split)
     return client_datasets
 def data_distribution_1(dataset,num_classes,num_clients,a):
-    data = dataset.data.numpy()
-    labels = dataset.targets.numpy()
-    client_data = [[] for _ in range(num_clients)]
-    client_labels = [[] for _ in range(num_clients)]
+    print('start')
+    data = dataset.data
+    labels = dataset.targets
     client_datasets=[]
      # 定义每个客户端的数据比例
     client_ratios=[]
     for i in range(num_clients):
             client_ratios.append([(1 - a) / 9] * i +[a]+ [(1 - a) / 9] * (num_classes -i))
     # 将数据分配给客户端
-    client_data = [[] for _ in range(num_clients)]
-    client_labels = [[] for _ in range(num_clients)]
+    client_data = [torch.Tensor() for _ in range(num_clients)]
+    client_labels = [torch.Tensor() for _ in range(num_clients)]
 
     for i in range(num_clients):
         # 计算每个类别应该分配给客户端的数量
-        class_counts = [int(ratio * len(data) / num_clients) for ratio in client_ratios[i]]
+        class_counts = [int(ratio * len(dataset.data) / num_clients) for ratio in client_ratios[i]]
 
         # 分配数据和标签给客户端
         for class_idx in range(num_classes):
             class_data = data[labels == class_idx]
             class_labels = labels[labels == class_idx]
 
-            # 随机打乱数据
-            np.random.shuffle(class_data)
-            np.random.shuffle(class_labels)
-
             # 选择要分配给客户端的数据
-            client_data[i].extend(class_data[:class_counts[class_idx]])
-            client_labels[i].extend(class_labels[:class_counts[class_idx]])
+            client_data[i]=torch.cat((client_data[i],class_data[:class_counts[class_idx]]),dim=0)
+            client_labels[i]=torch.cat((client_labels[i],(class_labels[:class_counts[class_idx]])),dim=0)
+            delete_list=np.where(labels == class_idx)[0][:class_counts[class_idx]]
+            data = np.delete(data,delete_list,axis=0)
+            labels = np.delete(labels, delete_list,axis=0)
+            print(len(data))
     for i in range(num_clients):
-          # Convert client data and labels to PyTorch tensors
-          client_data_tensor = torch.Tensor(client_data[i])
-          client_labels_tensor = torch.LongTensor(client_labels[i])  # Assuming labels are integers
+        for class_idx in range(num_classes):
+                count_ones = sum(1 for item in client_labels[i] if item == class_idx)
+                print(count_ones)
 
-          # Create a TensorDataset
-          client_datasets.append(TensorDataset(client_data_tensor, client_labels_tensor))
+    for i in range(num_clients):
+          client_datasets.append(TensorDataset(client_data[i], client_labels[i]))
     return client_datasets
 def data_distribution_2(dataset,num_classes,num_clients,theta):
-    data = dataset.data.numpy()
-    labels = dataset.targets.numpy()
-    client_data = [[] for _ in range(num_clients)]
-    client_labels = [[] for _ in range(num_clients)]
+    data = dataset.data
+    labels = dataset.targets
+    client_data = [torch.Tensor() for _ in range(num_clients)]
+    client_labels = [torch.Tensor() for _ in range(num_clients)]
     client_datasets=[]
     D = len(data)
     start = (D//num_clients-3*theta)//num_classes
@@ -70,36 +71,58 @@ def data_distribution_2(dataset,num_classes,num_clients,theta):
         for j in range(num_classes):
             class_data = data[labels == j]
             class_labels = labels[labels  == j]
-            np.random.shuffle(class_data)
-            np.random.shuffle(class_labels)
-            client_data[i].extend(class_data[:choice_list[i]])
-            client_labels[i].extend(class_data[:choice_list[i]])
+
+            client_data[i]=torch.cat((client_data[i],class_data[:choice_list[i]]),dim=0)
+            client_labels[i]=torch.cat((client_labels[i],class_labels[:choice_list[i]]),dim=0)
+            delete_list=np.where(labels==j)[0][:choice_list[i]]
+            data=np.delete(data,delete_list,axis=0)
+            labels=np.delete(labels,delete_list,axis=0)
+            print(len(data))
     for i in range(num_clients):
-          # Convert client data and labels to PyTorch tensors
-          client_data_tensor = torch.Tensor(client_data[i])
-          client_labels_tensor = torch.LongTensor(client_labels[i])  # Assuming labels are integers
-          # Create a TensorDataset
-          client_datasets.append(TensorDataset(client_data_tensor, client_labels_tensor))
+        for class_idx in range(num_classes):
+                count_ones = sum(1 for item in client_labels[i] if item == class_idx)
+                print(count_ones)
+    for i in range(num_clients):
+          client_datasets.append(TensorDataset(client_data[i], client_labels[i]))
     return client_datasets
+
 def data_distribution_3(dataset,num_classes,num_clients,ch):
-    data = dataset.data.numpy()
-    labels = dataset.targets.numpy()
-    client_data = [[] for _ in range(num_clients)]
-    client_labels = [[] for _ in range(num_clients)]
+    data = dataset.data
+    labels = dataset.targets
+    client_data = [torch.Tensor() for _ in range(num_clients)]
+    client_labels = [torch.Tensor() for _ in range(num_clients)]
     client_datasets=[]
-    choice_list = [i for i in range(num_classes)]
+    choice_list = [i for i in range(num_clients+1)]
+    client_class_ch= []
+    assign_num= len(data)//(ch*num_clients)
+    # for i in range(num_clients):
+    #     client_class_ch.append([(j+i*ch)%num_classes for j in choice_list])
+    client_class_ch=[[0,1,2,3,4],
+                     [5,6,7,8,9],
+                     [0,2,4,6,8],
+                     [1,3,5,7,9]]
     for i in range(num_clients):
         for j in range(ch):
-            random.shuffle(choice_list)
-            class_data = data[labels == choice_list[j]]
-            class_labels = labels[labels  == choice_list[j]]
-            client_data[i].extend(class_data)
-            client_labels[i].extend(class_labels)
+            class_data = data[labels == client_class_ch[i][j]]
+            class_labels = labels[labels == client_class_ch[i][j]]
+            client_data[i]=torch.cat((client_data[i],class_data[:assign_num]),dim=0)
+            client_labels[i]=torch.cat((client_labels[i],class_labels[:assign_num]),dim=0)
+            delete_list=np.where(labels==client_class_ch[i][j])[0][:assign_num]
+            data=np.delete(data,delete_list,axis=0)
+            labels=np.delete(labels,delete_list,axis=0)
+            print(len(data))
+            client_datasets.append(TensorDataset(client_data[i], client_labels[i]))
     for i in range(num_clients):
-          # Convert client data and labels to PyTorch tensors
-          client_data_tensor = torch.Tensor(client_data[i])
-          client_labels_tensor = torch.LongTensor(client_labels[i])  # Assuming labels are integers
-
-          # Create a TensorDataset
-          client_datasets.append(TensorDataset(client_data_tensor, client_labels_tensor))
+        for class_idx in range(num_classes):
+                count_ones = sum(1 for item in client_labels[i] if item == class_idx)
+                print(count_ones)        
     return client_datasets
+
+
+def main():
+    transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Normalize((0.1307,), (0.3081,))
+            ])
+    train_dataset = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
+    data_distribution_3(train_dataset,10,4,5)

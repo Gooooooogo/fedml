@@ -17,7 +17,7 @@ import choose_models
 import tools
 import fedserver
 import fedclient
-def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function):
+def main1(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function):
     # Load MNIST dataset
     device=tools.choose_device()
     model, train_dataset, test_dataset= choose_models.select_model(model_type)
@@ -74,10 +74,10 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
           server.loss=server.get_loss(server.global_model,test_loader)
           server.acc=server.get_accuracy(server.global_model,test_loader)
           server.result()
-def main_nag(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function):
-    # Load MNIST dataset
+def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset):
     device=tools.choose_device()
-    model, train_dataset, test_dataset= choose_models.select_model(model_type)
+    model=choose_models.select_model(model_type)
+    train_dataset, test_dataset=  choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
     client_datasets= choose_datas.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients )
@@ -100,7 +100,6 @@ def main_nag(model_type,learning_rate, momentum, nesterov ,num_rounds, local_rou
     server.register(client2)
     server.register(client3)
     server.register(client4)
-    print(server.loss_func.__class__.__name__=='MSELoss')
     
     for i in range(num_rounds):
           server.download_model('client1')
@@ -120,7 +119,7 @@ def main_nag(model_type,learning_rate, momentum, nesterov ,num_rounds, local_rou
 if __name__ == "__main__":
     #main('VGG16',0.01,0.5,True,25,40,4,64)
     #main('linear',0.01,0,False,25,10,4,64,'MSE')
-    #main('linear',0.01,0.05,True,25,40,4,64,'MSE')
+    #main('linear',0.01,0.5,True,25,40,4,64,'MSE')
     # main('log',0.01,0,False,25,40,4,64,'CrossEntropy')
     # main('log',0.01,0.5,True,25,40,4,64,'CrossEntropy')
     # main('cnn',0.01,0,False,25,40,4,64,'nll_loss')
@@ -131,4 +130,10 @@ if __name__ == "__main__":
     #main('linear',0.01,0,False,25,10*4,4,64,'MSE')
     #main_nag('linear',0.01,0.05,True,25,10*4,4,64,'MSE')
 
-    main('cnn',0.01,0,False,25,10,4,64,'nll_loss')
+    #main('vgg16',0.01,0.9,True,25,40,4,64,'CrossEntropy','cifar10')
+    main('linear',0.01,0,False,50,20,4,64,'MSE','mnist')
+    main('log',0.01,0,False,50,20,4,64,'CrossEntropy','mnist')
+    main('cnn',0.01,0,False,25,40,4,64,'nll_loss','mnist')
+    main('linear',0.01,0.9,True,50,20,4,64,'MSE','mnist')
+    main('log',0.01,0.9,True,50,20,4,64,'CrossEntropy','mnist')
+    main('cnn',0.01,0.9,True,25,40,4,64,'nll_loss','mnist')

@@ -139,7 +139,7 @@ class Server():
                     loss.to(self.device)
                     loss.backward()
                     client.local_optimizer.step()
-                    loss_sum+= loss.item()
+                    #loss_sum+= loss.item()
                     if client.trained_idx == len(client.data):
                         client.data_iter=iter(client.data)
                         client.trained_idx=0
@@ -165,7 +165,7 @@ class Server():
                     labels= labels_one_hot.float()
                 batch_loss = criterion(outputs, labels)
                 loss_sum += batch_loss.item()
-          return loss_sum
+          return loss_sum/len(test_loader)
 
     def get_accuracy(self,model,test_loader):
       model.eval()
@@ -188,7 +188,7 @@ class Server():
     def result(self):
         current_global_round=self.current_global_round
         client_list=list(self.clients.values())
-        current_iteration= sum([i.trained_nums for i in client_list])
+        current_iteration= sum([i.trained_nums for i in client_list])/len(client_list)
         average_training_loss = sum([i.loss/len(client_list) for i in client_list])
         test_loss= self.loss
         accuracy= self.acc
@@ -200,12 +200,13 @@ class Server():
         "test_loss": test_loss,
         "accuracy": accuracy
         }
+
         csv_filename = "result.csv"
         with open(csv_filename, "a", newline="") as csvfile:
             fieldnames = data.keys()
             csv_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-            #csv_writer.writeheader()
+            csv_writer.writerow(fieldnames)
             csv_writer.writerow(data)
 
         #return current_global_round, current_iteration, average_training_loss, test_loss, accuracy
