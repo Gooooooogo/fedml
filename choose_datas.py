@@ -9,16 +9,38 @@ import copy
 import argparse
 import torch.nn.functional as F
 import random
-from torch.utils.data import DataLoader, random_split ,TensorDataset
+from torch.utils.data import DataLoader, random_split ,TensorDataset,Subset
 
 #1.展示最后的分布
 #2. 不重复
 def data_distribution_0(dataset,num_classes,num_clients):
-    client_datasets=[]
-    data_splits = random_split(dataset, [len(dataset)//num_clients]*num_clients)
-    for data_split in data_splits:
-        client_datasets.append(data_split)
-    return client_datasets
+#     client_datasets=[]
+#     choose_num=len(dataset)//num_clients
+#     data = dataset.data
+#     labels = dataset.targets
+#     client_data = []
+#     client_labels = []
+#     for i in range(num_clients):
+#         client_data.append(data[:choose_num].to(torch.float32))
+#         client_labels.append(labels[:choose_num])
+#         data=np.delete(data,slice(0,choose_num),axis=0)
+#         labels=np.delete(labels,slice(0,choose_num),axis=0)
+#     for i in range(num_clients):
+#         for class_idx in range(num_classes):
+#                 count_ones = sum(1 for item in client_labels[i] if item == class_idx)
+#                 print(count_ones)
+
+#     for i in range(num_clients):
+#           client_datasets.append(TensorDataset(client_data[i], client_labels[i]))
+
+    client_datasets = []
+    choose_num=len(dataset)//num_clients
+    for i in range(num_clients):
+        start_idx = i * choose_num
+        end_idx = (i + 1) * choose_num
+        client_dataset = Subset(dataset, range(start_idx, end_idx))
+        client_datasets.append(client_dataset)
+    return   client_datasets    
 def data_distribution_1(dataset,num_classes,num_clients,a):
     print('start')
     data = dataset.data
@@ -119,10 +141,11 @@ def data_distribution_3(dataset,num_classes,num_clients,ch):
     return client_datasets
 
 
-def main():
+
+if __name__ == "__main__":
     transform = transforms.Compose([
                 transforms.ToTensor(),
                 transforms.Normalize((0.1307,), (0.3081,))
             ])
     train_dataset = datasets.MNIST(root='./data', train=True, transform=transform, download=True)
-    data_distribution_3(train_dataset,10,4,5)
+    data_distribution_0(train_dataset,10,4)

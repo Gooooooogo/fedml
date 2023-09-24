@@ -77,10 +77,10 @@ def main1(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round,
 def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset):
     device=tools.choose_device()
     model=choose_models.select_model(model_type)
-    train_dataset, test_dataset=  choose_models.select_dataset(dataset)
+    train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= choose_datas.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients )
+    client_datasets= choose_datas.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=False)
@@ -130,10 +130,9 @@ if __name__ == "__main__":
     #main('linear',0.01,0,False,25,10*4,4,64,'MSE')
     #main_nag('linear',0.01,0.05,True,25,10*4,4,64,'MSE')
 
-    #main('vgg16',0.01,0.9,True,25,40,4,64,'CrossEntropy','cifar10')
-    main('linear',0.01,0,False,50,20,4,64,'MSE','mnist')
+    #main('linear',0.01,0,False,50,20,4,64,'MSE','mnist')
     main('log',0.01,0,False,50,20,4,64,'CrossEntropy','mnist')
     main('cnn',0.01,0,False,25,40,4,64,'nll_loss','mnist')
-    main('linear',0.01,0.9,True,50,20,4,64,'MSE','mnist')
+    #main('linear',0.01,0.9,True,50,20,4,64,'MSE','mnist')
     main('log',0.01,0.9,True,50,20,4,64,'CrossEntropy','mnist')
     main('cnn',0.01,0.9,True,25,40,4,64,'nll_loss','mnist')

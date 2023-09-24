@@ -206,7 +206,6 @@ class Server():
             fieldnames = data.keys()
             csv_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-            csv_writer.writerow(fieldnames)
             csv_writer.writerow(data)
 
         #return current_global_round, current_iteration, average_training_loss, test_loss, accuracy
