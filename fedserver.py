@@ -85,26 +85,6 @@ class Server():
                         if momentum != 0:
                             self.global_optimizer.state[p]['momentum_buffer']= torch.clone(column_means[idx]).detach()
                             idx+=1
-# train
-    # def local_train_old(self, client_id):
-    #     client=self.clients[client_id]
-    #     client.local_model = copy.deepcopy(self.global_model)
-    #     client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= 'True')
-    #     client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
-    #     client.local_model.to(self.device)
-    #     for batch_idx, (data, target) in enumerate(client.data): #note: batch_idx start from 0
-    #         data.to(self.device)
-    #         target.to(self.device)
-    #         if batch_idx >= client.trained_idx and  batch_idx< client.trained_idx+client.local_round:
-    #             client.local_optimizer.zero_grad()
-    #             output = client.local_model(data.to(self.device))
-    #             loss = nn.CrossEntropyLoss()(output.to(self.device), target.to(self.device))
-    #             loss.to(self.device)
-    #             loss.backward()
-    #             client.local_optimizer.step()
-    #         if batch_idx == client.trained_idx+client.local_round:
-    #             client.trained_idx =batch_idx
-    #             break
     def download_model(self, client_id):
         client=self.clients[client_id]
         client.local_model = copy.deepcopy(self.global_model)
