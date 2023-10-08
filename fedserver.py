@@ -18,7 +18,7 @@ class Server():
         self.clients={}
         self.global_model= object
         self.global_model.to(device)
-        self.global_optimizer=optim.SGD(self.global_model.parameters(), lr=learning_rate, momentum=momentum, nesterov= nesterov)
+        self.global_optimizer= None
         self.learning_rate=learning_rate
         self.momentum=momentum
         self.nesterov=nesterov
@@ -27,6 +27,7 @@ class Server():
         self.acc=0
         self.loss_func= None
         self.loss=0
+        self.v= self.global_model.state_dict()
     def register(self,client):
           self.clients[client.id]= client
           client.registered= True
@@ -43,7 +44,30 @@ class Server():
             self.clients[key].local_model=copy.deepcopy(shuffled_list[idx].local_model)
             self.clients[key].local_optimizer=copy.deepcopy(shuffled_list[idx].local_optimizer)
             idx+=1
-
+    def fedmon(self):
+        new_w_local = [[] for _ in range(len(self.clients))]
+        # get all local_model's params
+        for clt,idx in zip(self.clients.values(),range(len(self.clients))):
+               for param in clt.local_model.state_dict().values():
+                    new_w_local[idx].append(param)
+        average_list = tools.average(new_w_local)
+        new_w_average={}
+        
+        idx=0
+        for key in self.global_model.state_dict().keys():
+            new_w_average[key]= average_list[idx].to(self.device)
+            idx+=1
+        w=self.global_model.state_dict()
+        v=self.v
+        #get v
+        v_new={}
+        w_new={}
+        for key,value in v.items():
+            v_new[key]=w[key]-1* (w[key]-new_w_average[key])            
+            w_new[key]=v_new[key] + self.momentum * (v_new[key]-v[key] )
+        self.v.update(v_new)
+        self.global_model.load_state_dict(w_new)
+        self.global_optimizer=optim.SGD(self.global_model.parameters(), lr=self.learning_rate)
     def fednag(self):
         learning_rate=self.learning_rate
         momentum=self.momentum
@@ -89,6 +113,12 @@ class Server():
         client=self.clients[client_id]
         client.local_model = copy.deepcopy(self.global_model)
         client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= self.nesterov)
+        client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
+        client.local_model.to(self.device)
+    def download_model_mon(self, client_id):
+        client=self.clients[client_id]
+        client.local_model = copy.deepcopy(self.global_model)
+        client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate)
         client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
         client.local_model.to(self.device)
 
