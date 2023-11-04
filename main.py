@@ -12,18 +12,18 @@ import argparse
 import torch.nn.functional as F
 import random
 from torch.utils.data import DataLoader, random_split ,TensorDataset
-import Resample
+import resample
 import choose_models 
 import tools
-import FedServer
-import FedClient
+import fedserver
+import fedclient
 def main1(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function):
     # Load MNIST dataset
     device=tools.choose_device()
     model, train_dataset, test_dataset= choose_models.select_model(model_type)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= Resample.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients )
+    client_datasets= resample.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients )
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=False)
@@ -33,12 +33,12 @@ def main1(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round,
     #server and client
     model=copy.deepcopy(model)
     model.to(device)
-    server=FedServer.Server(model, learning_rate, momentum, nesterov, device )
+    server=fedserver.Server(model, learning_rate, momentum, nesterov, device )
     server.loss_function(loss_function)
-    client1= FedClient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
-    client2= FedClient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
-    client3= FedClient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
-    client4= FedClient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
+    client1= fedclient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
+    client2= fedclient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
+    client3= fedclient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
+    client4= fedclient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
     server.register(client1)
     server.register(client2)
     server.register(client3)
@@ -80,7 +80,7 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= Resample.data_distribution_2(train_dataset,len(train_dataset.classes), num_clients,1500)
+    client_datasets= resample.data_distribution_2(train_dataset,len(train_dataset.classes), num_clients,1500)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
@@ -90,12 +90,12 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
     #server and client
     model=copy.deepcopy(model)
     model.to(device)
-    server=FedServer.Server(model, learning_rate, momentum, nesterov, device)
+    server=fedserver.Server(model, learning_rate, momentum, nesterov, device)
     server.loss_function(loss_function)
-    client1= FedClient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
-    client2= FedClient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
-    client3= FedClient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
-    client4= FedClient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
+    client1= fedclient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
+    client2= fedclient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
+    client3= fedclient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
+    client4= fedclient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
     server.register(client1)
     server.register(client2)
     server.register(client3)
@@ -121,7 +121,7 @@ def main3(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round,
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= Resample.data_distribution_3(train_dataset,len(train_dataset.classes), num_clients,5)
+    client_datasets= resample.data_distribution_3(train_dataset,len(train_dataset.classes), num_clients,5)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
@@ -131,12 +131,12 @@ def main3(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round,
     #server and client
     model=copy.deepcopy(model)
     model.to(device)
-    server=FedServer.Server(model, learning_rate, momentum, nesterov, device)
+    server=fedserver.Server(model, learning_rate, momentum, nesterov, device)
     server.loss_function(loss_function)
-    client1= FedClient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
-    client2= FedClient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
-    client3= FedClient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
-    client4= FedClient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
+    client1= fedclient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
+    client2= fedclient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
+    client3= fedclient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
+    client4= fedclient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
     server.register(client1)
     server.register(client2)
     server.register(client3)
@@ -163,7 +163,7 @@ def main_fedmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= Resample.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients)
+    client_datasets= resample.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
@@ -173,13 +173,13 @@ def main_fedmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_
     #server and client
     model=copy.deepcopy(model)
     model.to(device)
-    server=FedServer.Server(model, learning_rate, momentum, nesterov, device)
+    server=fedserver.Server(model, learning_rate, momentum, nesterov, device)
     server.global_optimizer=optim.SGD(server.global_model.parameters(), lr=learning_rate)
     server.loss_function(loss_function)
-    client1= FedClient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
-    client2= FedClient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
-    client3= FedClient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
-    client4= FedClient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
+    client1= fedclient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
+    client2= fedclient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
+    client3= fedclient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
+    client4= fedclient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
     server.register(client1)
     server.register(client2)
     server.register(client3)
@@ -206,7 +206,7 @@ def main_fedmon_1(model_type,learning_rate, momentum, nesterov ,num_rounds, loca
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= Resample.data_distribution_1(train_dataset,len(train_dataset.classes), num_clients,0.2)
+    client_datasets= resample.data_distribution_1(train_dataset,len(train_dataset.classes), num_clients,0.2)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
@@ -216,13 +216,13 @@ def main_fedmon_1(model_type,learning_rate, momentum, nesterov ,num_rounds, loca
     #server and client
     model=copy.deepcopy(model)
     model.to(device)
-    server=FedServer.Server(model, learning_rate, momentum, nesterov, device)
+    server=fedserver.Server(model, learning_rate, momentum, nesterov, device)
     server.global_optimizer=optim.SGD(server.global_model.parameters(), lr=learning_rate)
     server.loss_function(loss_function)
-    client1= FedClient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
-    client2= FedClient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
-    client3= FedClient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
-    client4= FedClient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
+    client1= fedclient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
+    client2= fedclient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
+    client3= fedclient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
+    client4= fedclient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
     server.register(client1)
     server.register(client2)
     server.register(client3)
@@ -249,7 +249,7 @@ def main_fedmon_2(model_type,learning_rate, momentum, nesterov ,num_rounds, loca
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= Resample.data_distribution_2(train_dataset,len(train_dataset.classes), num_clients,1500)
+    client_datasets= resample.data_distribution_2(train_dataset,len(train_dataset.classes), num_clients,1500)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
@@ -259,13 +259,13 @@ def main_fedmon_2(model_type,learning_rate, momentum, nesterov ,num_rounds, loca
     #server and client
     model=copy.deepcopy(model)
     model.to(device)
-    server=FedServer.Server(model, learning_rate, momentum, nesterov, device)
+    server=fedserver.Server(model, learning_rate, momentum, nesterov, device)
     server.global_optimizer=optim.SGD(server.global_model.parameters(), lr=learning_rate)
     server.loss_function(loss_function)
-    client1= FedClient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
-    client2= FedClient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
-    client3= FedClient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
-    client4= FedClient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
+    client1= fedclient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
+    client2= fedclient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
+    client3= fedclient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
+    client4= fedclient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
     server.register(client1)
     server.register(client2)
     server.register(client3)
@@ -293,7 +293,7 @@ def main_fedmon_3(model_type,learning_rate, momentum, nesterov ,num_rounds, loca
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= Resample.data_distribution_3(train_dataset,len(train_dataset.classes), num_clients, 5)
+    client_datasets= resample.data_distribution_3(train_dataset,len(train_dataset.classes), num_clients, 5)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
@@ -303,13 +303,13 @@ def main_fedmon_3(model_type,learning_rate, momentum, nesterov ,num_rounds, loca
     #server and client
     model=copy.deepcopy(model)
     model.to(device)
-    server=FedServer.Server(model, learning_rate, momentum, nesterov, device)
+    server=fedserver.Server(model, learning_rate, momentum, nesterov, device)
     server.global_optimizer=optim.SGD(server.global_model.parameters(), lr=learning_rate)
     server.loss_function(loss_function)
-    client1= FedClient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
-    client2= FedClient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
-    client3= FedClient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
-    client4= FedClient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
+    client1= fedclient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
+    client2= fedclient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
+    client3= fedclient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
+    client4= fedclient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
     server.register(client1)
     server.register(client2)
     server.register(client3)
