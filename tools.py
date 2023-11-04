@@ -69,4 +69,3 @@ def save2excel(excel_name, sheet_name, data):
 
     # 关闭工作簿
     workbook.close()
-
