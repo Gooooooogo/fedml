@@ -10,7 +10,7 @@ import argparse
 import torch.nn.functional as F
 import random
 from torch.utils.data import DataLoader, random_split ,TensorDataset
-import choose_datas
+import Resample
 import choose_models 
 import tools
 class Server():
@@ -44,7 +44,7 @@ class Server():
             self.clients[key].local_model=copy.deepcopy(shuffled_list[idx].local_model)
             self.clients[key].local_optimizer=copy.deepcopy(shuffled_list[idx].local_optimizer)
             idx+=1
-    def fedmon(self):
+    def aggregate_fedmon(self):
         new_w_local = [[] for _ in range(len(self.clients))]
         # get all local_model's params
         for clt,idx in zip(self.clients.values(),range(len(self.clients))):
@@ -68,7 +68,7 @@ class Server():
         self.v.update(v_new)
         self.global_model.load_state_dict(w_new)
         self.global_optimizer=optim.SGD(self.global_model.parameters(), lr=self.learning_rate)
-    def fednag(self):
+    def aggregate_fednag(self):
         learning_rate=self.learning_rate
         momentum=self.momentum
         nesterov=self.nesterov
@@ -212,13 +212,13 @@ class Server():
         }
 
         csv_filename = "result.csv"
-        with open(csv_filename, "a", newline="") as csvfile:
-            fieldnames = data.keys()
-            csv_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        # with open(csv_filename, "a", newline="") as csvfile:
+        #     fieldnames = data.keys()
+        #     csv_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
-            csv_writer.writerow(data)
+        #     csv_writer.writerow(data)
 
-        #return current_global_round, current_iteration, average_training_loss, test_loss, accuracy
+        return data
 
     def loss_function(self,loss_func):
         if loss_func=='MSE':

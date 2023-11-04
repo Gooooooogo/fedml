@@ -92,7 +92,8 @@ class Server():
                                 self.global_optimizer.state[p]['momentum_buffer']= torch.clone(column_means[idx]).detach()
                                 idx+=1
 # train
-    def local_train(self, client_id):
+
+    def local_train_fednag(self, client_id):
         client=self.clients[client_id]
         client.local_model = copy.deepcopy(self.global_model)
         client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= self.nesterov)
@@ -111,8 +112,27 @@ class Server():
             if batch_idx == client.trained_idx+client.local_round: 
                 client.trained_idx = batch_idx
                 break
-        #print(id(client)==id(self.clients[client_id]))
-        #print(client.local_optimizer.state)
+
+    def local_train_fedmon(self, client_id):
+        client=self.clients[client_id]
+        client.local_model = copy.deepcopy(self.global_model)
+        client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate)
+        client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
+        client.local_model.to(self.device)
+        for batch_idx, (data, target) in enumerate(client.data): #note: batch_idx start from 0
+            data.to(self.device)
+            target.to(self.device)
+            if batch_idx >= client.trained_idx and  batch_idx< client.trained_idx+client.local_round:
+                client.local_optimizer.zero_grad()
+                output = client.local_model(data.to(self.device))
+                loss = nn.CrossEntropyLoss()(output.to(self.device), target.to(self.device))
+                loss.to(self.device)
+                loss.backward()
+                client.local_optimizer.step()
+            if batch_idx == client.trained_idx+client.local_round: 
+                client.trained_idx = batch_idx
+                break
+
     def accuracy(self, model,test_loader):
         model.eval()
         correct = 0 
@@ -228,10 +248,10 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
     server.register(client3)
     server.register(client4)
     for i in range(num_rounds):
-          server.local_train('client1')
-          server.local_train('client2')
-          server.local_train('client3')
-          server.local_train('client4')
+          server.local_train_fednag('client1')
+          server.local_train_fednag('client2')
+          server.local_train_fednag('client3')
+          server.local_train_fednag('client4')
           server.fednag()
           server.accuracy(server.global_model,test_loader)
 
