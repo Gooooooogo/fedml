@@ -88,8 +88,6 @@ class Server():
             idx+=1
         self.global_model.load_state_dict(averaged_weights)
 
-
-
         self.global_optimizer=optim.SGD(self.global_model.parameters(), lr=learning_rate, momentum=momentum, nesterov= nesterov)
         # momentum_buffer_list : [[]*len(self.clients)]
         if self.momentum != 0:
@@ -109,6 +107,9 @@ class Server():
                         if momentum != 0:
                             self.global_optimizer.state[p]['momentum_buffer']= torch.clone(column_means[idx]).detach()
                             idx+=1
+    def aggregate_fastslowmon(self):
+        '''
+        '''
     def download_model(self, client_id):
         client=self.clients[client_id]
         client.local_model = copy.deepcopy(self.global_model)

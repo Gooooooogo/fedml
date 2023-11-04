@@ -345,7 +345,7 @@ if __name__ == "__main__":
     #main3('cnn',0.01,0.9,True,25,40,4,64,'nll_loss','mnist')
 
     main_fedmon('linear',0.01,0.9,False,50,20,4,64,'MSE','mnist')
-    #main_fedmon('log',0.01,0.9,False,50,20,4,64,'CrossEntropy','mnist')
+    main_fedmon('log',0.01,0.9,False,50,20,4,64,'CrossEntropy','mnist')
     #main_fedmon('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist')
     # main_fedmon_1('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist')
     # main_fedmon_2('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist')
