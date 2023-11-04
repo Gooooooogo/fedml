@@ -192,6 +192,7 @@ def main_fedmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_
           server.download_model_mon('client4')
           server.current_global_round=i
           server.local_train('client1')
+          print(client1.local_optimizer.state_dict())
           server.local_train('client2')
           server.local_train('client3')
           server.local_train('client4')
@@ -199,7 +200,8 @@ def main_fedmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_
           server.loss=server.get_loss(server.global_model,test_loader)
           server.acc=server.get_accuracy(server.global_model,test_loader)
           result=server.result()
-          tools.save2excel('result_all.xlsx','test',result)
+          print(result)
+          tools.save2excel('result_all.xlsx','test1',result)
 def main_fedmon_1(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset):
     device=tools.choose_device()
     model=choose_models.select_model(model_type)
@@ -345,7 +347,7 @@ if __name__ == "__main__":
     #main3('cnn',0.01,0.9,True,25,40,4,64,'nll_loss','mnist')
 
     main_fedmon('linear',0.01,0.9,False,50,20,4,64,'MSE','mnist')
-    main_fedmon('log',0.01,0.9,False,50,20,4,64,'CrossEntropy','mnist')
+    #main_fedmon('log',0.01,0.9,False,50,20,4,64,'CrossEntropy','mnist')
     #main_fedmon('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist')
     # main_fedmon_1('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist')
     # main_fedmon_2('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist')

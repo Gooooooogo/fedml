@@ -110,6 +110,7 @@ class Server():
     def aggregate_fastslowmon(self):
         '''
         '''
+        
     def download_model(self, client_id):
         client=self.clients[client_id]
         client.local_model = copy.deepcopy(self.global_model)
@@ -229,3 +230,44 @@ class Server():
             self.loss_func = torch.nn.CrossEntropyLoss()
         elif loss_func=='nll_loss':
             self.loss_func = torch.nn.NLLLoss()
+
+
+
+
+
+    def local_train_fastslowmon(self, client_id):
+        client=self.clients[client_id]
+        client.local_model.to(self.device)
+        criterion = self.loss_func
+        # For each worker 푖 in parallel, compute its local update
+        # 获取模型的状态字典
+        weight_old = client.local_model.state_dict()
+        self.local_train(self, client_id)
+        weight_new = client.local_model.state_dict()
+        weight_estimate = {}
+        for key, value in weight_old.items():
+            weight_estimate[key]=0.5*(weight_new[key]-weight_new[weight_old])+weight_new[key]
+        client.local_model.load_state_dict(weight_estimate)
+
+    def aggregate_fastslowmon(self):
+        weight_old = self.global_model.state_dict()
+        
+        new_w_local = [[] for _ in range(len(self.clients))]
+        # get all local_model's params
+        for clt,idx in zip(self.clients.values(),range(len(self.clients))):
+               for param in clt.local_model.state_dict().values():
+                    new_w_local[idx].append(param)
+        average_list = tools.average(new_w_local)
+        weight_new={}
+        
+        idx=0
+        for key in self.global_model.state_dict().keys():
+            weight_new[key]= average_list[idx].to(self.device)
+            idx+=1
+
+        for key, value in self.global_model.items():
+            weight_estimate = {}
+            weight_estimate[key]=0.5*(weight_new[key]-weight_new[weight_old])+weight_new[key]
+            self.global_model.load_state_dict(weight_estimate)
+
+
