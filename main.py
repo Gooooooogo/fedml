@@ -12,7 +12,7 @@ import argparse
 import torch.nn.functional as F
 import random
 from torch.utils.data import DataLoader, random_split ,TensorDataset
-import resample
+import resample_data
 import choose_models 
 import tools
 import fedserver
@@ -23,7 +23,7 @@ def main1(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round,
     model, train_dataset, test_dataset= choose_models.select_model(model_type)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= resample.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients )
+    client_datasets= resample_data.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients )
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=False)
@@ -80,7 +80,7 @@ def main(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, 
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= resample.data_distribution_2(train_dataset,len(train_dataset.classes), num_clients,1500)
+    client_datasets= resample_data.data_distribution_2(train_dataset,len(train_dataset.classes), num_clients,1500)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
@@ -121,7 +121,7 @@ def main3(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round,
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= resample.data_distribution_3(train_dataset,len(train_dataset.classes), num_clients,5)
+    client_datasets= resample_data.data_distribution_3(train_dataset,len(train_dataset.classes), num_clients,5)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
@@ -163,7 +163,7 @@ def main_fedmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= resample.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients)
+    client_datasets= resample_data.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
@@ -206,7 +206,7 @@ def main_fedmon_1(model_type,learning_rate, momentum, nesterov ,num_rounds, loca
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= resample.data_distribution_1(train_dataset,len(train_dataset.classes), num_clients,0.2)
+    client_datasets= resample_data.data_distribution_1(train_dataset,len(train_dataset.classes), num_clients,0.2)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
@@ -249,7 +249,7 @@ def main_fedmon_2(model_type,learning_rate, momentum, nesterov ,num_rounds, loca
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= resample.data_distribution_2(train_dataset,len(train_dataset.classes), num_clients,1500)
+    client_datasets= resample_data.data_distribution_2(train_dataset,len(train_dataset.classes), num_clients,1500)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
@@ -293,7 +293,7 @@ def main_fedmon_3(model_type,learning_rate, momentum, nesterov ,num_rounds, loca
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= resample.data_distribution_3(train_dataset,len(train_dataset.classes), num_clients, 5)
+    client_datasets= resample_data.data_distribution_3(train_dataset,len(train_dataset.classes), num_clients, 5)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)

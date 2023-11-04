@@ -10,7 +10,7 @@ import argparse
 import torch.nn.functional as F
 import random
 from torch.utils.data import DataLoader, random_split ,TensorDataset
-import resample
+import resample_data
 import choose_models 
 import tools
 class Server():
