@@ -28,8 +28,13 @@ class Server():
         self.loss_func= None
         self.loss=0
         self.v= self.global_model.state_dict()
+        # fastslowmon
+        self.x= self.global_model.state_dict()
+        self.y= self.global_model.state_dict()
+        self.y_global=self.global_model.state_dict()
     def register(self,client):
           self.clients[client.id]= client
+          
           client.registered= True
     def unregister(self,client):
           if client.id in self.clients:
@@ -64,10 +69,9 @@ class Server():
         w_new={}
         for key,value in v.items():
             v_new[key]=w[key]-1* (w[key]-new_w_average[key])            
-            w_new[key]=v_new[key] + self.momentum * (v_new[key]-v[key] )
+            w_new[key]=v_new[key] + 0.9 * (v_new[key]-v[key] )
         self.v.update(v_new)
         self.global_model.load_state_dict(w_new)
-        self.global_optimizer=optim.SGD(self.global_model.parameters(), lr=self.learning_rate)
     def aggregate_fednag(self):
         learning_rate=self.learning_rate
         momentum=self.momentum
@@ -121,13 +125,13 @@ class Server():
         client=self.clients[client_id]
         client.local_model = copy.deepcopy(self.global_model)
         client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate)
-        client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
         client.local_model.to(self.device)
 
     def local_train(self, client_id):
             client=self.clients[client_id]
             client.local_model.to(self.device)
             criterion = self.loss_func
+
             ## note
             ## for epoch in local_round:
             ##      train 1 time then iterate
@@ -159,7 +163,7 @@ class Server():
             client.loss =  loss.item()
             #client.loss=loss_sum/client.local_round
 
-
+    
 
     def get_loss(self,model,test_loader):
           loss_sum=0
@@ -237,39 +241,61 @@ class Server():
 
 
     def local_train_fastslowmon(self, client_id):
+        #initial?
         client=self.clients[client_id]
-        #123
+        client.local_model.load_state_dict(client.x)
         client.local_model.to(self.device)
         criterion = self.loss_func
+        client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= self.nesterov)
         # For each worker 푖 in parallel, compute its local update
         # 获取模型的状态字典
         weight_old = client.local_model.state_dict()
-        self.local_train(self, client_id)
+        self.local_train(client_id)
         weight_new = client.local_model.state_dict()
         weight_estimate = {}
         for key, value in weight_old.items():
-            weight_estimate[key]=0.5*(weight_new[key]-weight_new[weight_old])+weight_new[key]
-        client.local_model.load_state_dict(weight_estimate)
+            weight_estimate[key]=0.5*(weight_new[key]-client.y[key])+weight_new[key]
+        client.y =  weight_new  
+        client.x = weight_estimate
 
     def aggregate_fastslowmon(self):
         weight_old = self.global_model.state_dict()
         
-        new_w_local = [[] for _ in range(len(self.clients))]
+        new_y_local = [[] for _ in range(len(self.clients))]
         # get all local_model's params
         for clt,idx in zip(self.clients.values(),range(len(self.clients))):
-               for param in clt.local_model.state_dict().values():
-                    new_w_local[idx].append(param)
-        average_list = tools.average(new_w_local)
-        weight_new={}
+               for param in clt.y.values():
+                    new_y_local[idx].append(param)
+        y_global = tools.average(new_y_local)
+
         
         idx=0
         for key in self.global_model.state_dict().keys():
-            weight_new[key]= average_list[idx].to(self.device)
+            self.y_global[key]= y_global[idx].to(self.device)
             idx+=1
 
-        for key, value in self.global_model.items():
-            weight_estimate = {}
-            weight_estimate[key]=0.5*(weight_new[key]-weight_new[weight_old])+weight_new[key]
-            self.global_model.load_state_dict(weight_estimate)
+        new_x_local = [[] for _ in range(len(self.clients))]
+        # get  y_g
+        for clt,idx in zip(self.clients.values(),range(len(self.clients))):
+               for param in clt.x.values():
+                    new_x_local[idx].append(param)
+        weight_new_tensor = tools.average(new_x_local)
+        idx=0
+        weight_new={}
+        for key in self.global_model.state_dict().keys():
+            weight_new[key]= weight_new_tensor[idx].to(self.device)
+            idx+=1
+        #get x_g
+        weight_estimate = {}
+        for key, value in weight_old.items():
+            weight_estimate[key]=0.5*(weight_new[key]-self.y[key]) + weight_new[key]
+        self.y =  copy.deepcopy(weight_new)
+        self.x =  copy.deepcopy(weight_estimate)
+        self.global_model.load_state_dict(self.x)
 
-
+    def download_model_faseslowmon(self, client_id):
+        client=self.clients[client_id]
+        client.x=copy.deepcopy(self.x)
+        client.y=copy.deepcopy(self.y_global)
+      
+    

@@ -192,7 +192,6 @@ def main_fedmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_
           server.download_model_mon('client4')
           server.current_global_round=i
           server.local_train('client1')
-          print(client1.local_optimizer.state_dict())
           server.local_train('client2')
           server.local_train('client3')
           server.local_train('client4')
@@ -201,7 +200,13 @@ def main_fedmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_
           server.acc=server.get_accuracy(server.global_model,test_loader)
           result=server.result()
           print(result)
-          tools.save2excel('result_all.xlsx','test1',result)
+          if model_type == 'linear':
+               tools.save2excel('result_all.xlsx','mnist_linear_mon',result)
+          if model_type == 'cnn':
+               tools.save2excel('result_all.xlsx','mnist_cnn_mon',result)
+          if model_type == 'log':
+               tools.save2excel('result_all.xlsx','mnist_log_mon',result)
+          
 def main_fedmon_1(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset):
     device=tools.choose_device()
     model=choose_models.select_model(model_type)
@@ -332,7 +337,54 @@ def main_fedmon_3(model_type,learning_rate, momentum, nesterov ,num_rounds, loca
           server.acc=server.get_accuracy(server.global_model,test_loader)
           server.result()
 
+def main_fedfastslowmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset):
+    device=tools.choose_device()
+    model=choose_models.select_model(model_type)
+    train_dataset, test_dataset= choose_models.select_dataset(dataset)
+    model.to(device)
+    # # Create data loaders for each client
+    client_datasets= resample_data.data_distribution_0(train_dataset,len(train_dataset.classes), num_clients)
+    train_loaders = []
+    for i in range(num_clients):
+        train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
+        train_loaders.append(train_loader)
+    test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=True)
 
+    #server and client
+    model=copy.deepcopy(model)
+    model.to(device)
+    server=fedserver.Server(model, learning_rate, momentum, nesterov, device)
+    server.global_optimizer=optim.SGD(server.global_model.parameters(), lr=learning_rate)
+    server.loss_function(loss_function)
+    client1= fedclient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
+    client2= fedclient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
+    client3= fedclient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
+    client4= fedclient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
+    client1.local_model=copy.deepcopy(model)
+    client2.local_model=copy.deepcopy(model)
+    client3.local_model=copy.deepcopy(model)
+    client4.local_model=copy.deepcopy(model)
+
+    server.register(client1)
+    server.register(client2)
+    server.register(client3)
+    server.register(client4)
+    
+    for i in range(num_rounds):
+          server.download_model_faseslowmon('client1')   
+          server.download_model_faseslowmon('client2')
+          server.download_model_faseslowmon('client3')
+          server.download_model_faseslowmon('client4')
+          server.current_global_round=i
+          server.local_train_fastslowmon('client1')
+          server.local_train_fastslowmon('client2')
+          server.local_train_fastslowmon('client3')
+          server.local_train_fastslowmon('client4')
+          server.aggregate_fastslowmon()
+          server.loss=server.get_loss(server.global_model,test_loader)
+          server.acc=server.get_accuracy(server.global_model,test_loader)
+          result=server.result()
+          tools.save2excel('result_all.xlsx','mnist_linear_fastslowmon',result)
 if __name__ == "__main__":
 
 
@@ -346,9 +398,15 @@ if __name__ == "__main__":
     #main3('cnn',0.01,0,False,25,40,4,64,'nll_loss','mnist')
     #main3('cnn',0.01,0.9,True,25,40,4,64,'nll_loss','mnist')
 
-    main_fedmon('linear',0.01,0.9,False,50,20,4,64,'MSE','mnist')
-    #main_fedmon('log',0.01,0.9,False,50,20,4,64,'CrossEntropy','mnist')
-    #main_fedmon('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist')
+
+    main_fedmon('linear',0.01,0,False,50,20,4,64,'MSE','mnist')
+    main_fedmon('log',0.01,0,False,50,20,4,64,'CrossEntropy','mnist')
+    main_fedmon('cnn',0.01,0,False,25,40,4,64,'nll_loss','mnist')
     # main_fedmon_1('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist')
     # main_fedmon_2('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist')
     # main_fedmon_3('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist')
+
+
+    #main_fedfastslowmon('linear',0.01,0,False,50,25,4,64,'MSE','mnist')
+    # main_fedfastslowmon('log',0.01,0,False,25,40,4,64,'CrossEntropy','mnist')
+    # main_fedfastslowmon('cnn',0.01,0,False,50,20,4,64,'nll_loss','mnist')

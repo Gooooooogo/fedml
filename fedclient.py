@@ -14,3 +14,6 @@ class Client:
         self.trained_idx=0
         self.trained_nums=0
         self.loss=0
+        # fastslowmon
+        self.x=torch.tensor(0)
+        self.y=torch.tensor(0)
