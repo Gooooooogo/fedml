@@ -235,8 +235,10 @@ class Server():
 
 
 
+
     def local_train_fastslowmon(self, client_id):
         client=self.clients[client_id]
+        #123
         client.local_model.to(self.device)
         criterion = self.loss_func
         # For each worker 푖 in parallel, compute its local update
