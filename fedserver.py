@@ -119,6 +119,7 @@ class Server():
         client=self.clients[client_id]
         client.local_model = copy.deepcopy(self.global_model)
         client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= self.nesterov)
+        #client.local_optimizer=copy.deepcopy(self.global_optimizer)
         client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
         client.local_model.to(self.device)
     def download_model_mon(self, client_id):
@@ -131,7 +132,7 @@ class Server():
             client=self.clients[client_id]
             client.local_model.to(self.device)
             criterion = self.loss_func
-
+            
             ## note
             ## for epoch in local_round:
             ##      train 1 time then iterate
@@ -140,7 +141,6 @@ class Server():
             loss=0
             loss_sum=0
             for epoch in range(client.local_round):
-
                 for (data, labels) in client.data_iter:
                     client.trained_idx+=1
                     client.trained_nums+=1
@@ -161,8 +161,54 @@ class Server():
                         client.trained_idx=0
                     break
             client.loss =  loss.item()
+            print(client.local_optimizer.state_dict())
             #client.loss=loss_sum/client.local_round
+    def local_train_fastslowmon(self, client_id):
+            client=self.clients[client_id]
+            client.local_model.to(self.device)
+            criterion = self.loss_func
+            client.local_model.load_state_dict(client.x)
+            client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate)
+            ## note
+            ## for epoch in local_round:
+            ##      train 1 time then iterate
+            ##      then break
+            ##      if iterate all then initialize data_iter and trained_idx
+            loss=0
+            loss_sum=0
+            for epoch in range(client.local_round):
 
+                for (data, labels) in client.data_iter:
+                    weight_old = client.local_model.state_dict()
+                    client.trained_idx+=1
+                    client.trained_nums+=1
+                    client.local_optimizer.zero_grad()
+                    data, labels = data.to(self.device), labels.to(self.device)
+                    output = client.local_model(data)
+                    if self.loss_func.__class__.__name__== 'MSELoss':
+                        labels_one_hot = torch.zeros_like(output)
+                        labels_one_hot.scatter_(1, labels.view(-1, 1), 1.0)
+                        labels=labels_one_hot.float()
+                    loss = criterion(output, labels)
+                    loss.to(self.device)
+                    loss.backward()
+                    client.local_optimizer.step()
+                    weight_new = client.local_model.state_dict()
+                    weight_estimate = {}
+                    for key, value in weight_old.items():
+                        weight_estimate[key]=0.9*(weight_new[key]-client.y[key])+weight_new[key]
+                    # client.y 里存简单新权重
+                    # client.x 里存估计的新权重
+                    client.y =  weight_new  
+                    client.x = weight_estimate
+                    
+                    #loss_sum+= loss.item()
+                    if client.trained_idx == len(client.data):
+                        client.data_iter=iter(client.data)
+                        client.trained_idx=0
+                    break
+            client.loss =  loss.item()
+            #client.loss=loss_sum/client.local_round
     
 
     def get_loss(self,model,test_loader):
@@ -240,14 +286,14 @@ class Server():
 
 
 
-    def local_train_fastslowmon(self, client_id):
+    def local_train_fastslowmon_note(self, client_id):
         #initial?
         client=self.clients[client_id]
         client.local_model.load_state_dict(client.x)
         client.local_model.to(self.device)
         criterion = self.loss_func
         client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= self.nesterov)
-        # For each worker 푖 in parallel, compute its local update
+        # For each worker  in parallel, compute its local update
         # 获取模型的状态字典
         weight_old = client.local_model.state_dict()
         self.local_train(client_id)
@@ -262,12 +308,12 @@ class Server():
         weight_old = self.global_model.state_dict()
         
         new_y_local = [[] for _ in range(len(self.clients))]
-        # get all local_model's params
+        # average all local_model's params 
         for clt,idx in zip(self.clients.values(),range(len(self.clients))):
                for param in clt.y.values():
                     new_y_local[idx].append(param)
         y_global = tools.average(new_y_local)
-
+        #y_global 是 y_KT
         
         idx=0
         for key in self.global_model.state_dict().keys():

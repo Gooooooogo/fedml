@@ -17,3 +17,5 @@ class Client:
         # fastslowmon
         self.x=torch.tensor(0)
         self.y=torch.tensor(0)
+
+

@@ -150,10 +150,26 @@ def data_distribution_3(dataset,num_classes,num_clients,ch):
 
     # for i in range(num_clients):
     #     client_class_ch.append([(j+i*ch)%num_classes for j in choice_list])
-    client_class_ch=[[0,1,2,3,4],
-                     [3,4,5,6,7],
-                     [5,6,7,8,9],
-                     [0,1,2,8,9]]
+    if ch==5:
+        client_class_ch=[[0,1,2,3,4],
+                        [3,4,5,6,7],
+                        [5,6,7,8,9],
+                        [0,1,2,8,9]]
+    if ch==3:
+         client_class_ch=[[0,1,2],
+                        [3,4,5],
+                        [4,9,6],
+                        [6,7,8]]
+    if ch==6:
+         client_class_ch=[[0,1,2,3,4,5],
+                        [3,4,5,6,7,8],
+                        [5,6,7,8,9,1],
+                        [1,3,5,7,9,2]]     
+    if ch==9:
+         client_class_ch=[[0,1,2,3,4,5,6,7,8],
+                        [3,4,5,6,7,8,9,1,2],
+                        [4,5,6,7,8,9,1,2,0],
+                        [0,1,3,4,5,6,2,8,9]]  
     for i in range(num_clients):
         for j in range(ch):
             class_data = data[labels == client_class_ch[i][j]]
