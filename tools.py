@@ -13,27 +13,14 @@ def choose_device():
 
 
 import openpyxl
-def cleanexcel(excel_name, sheet_name, data):
+def cleanexcel(excel_name, sheet_name):
     workbook = openpyxl.load_workbook(excel_name)
 
     # 指定要选择的工作表名称
-
-    # 检查工作表是否存在，如果不存在则创建一个新工作表
-    if sheet_name not in workbook.sheetnames:
-        workbook.create_sheet(title=sheet_name)
-
-    # 选择工作表
     sheet = workbook[sheet_name]
-
-    # 删除工作表中的所有旧数据
-    for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row, max_col=2):
-        for cell in row:
-            cell.value = None
-        column=1
-    # 将数据写入选定的工作表，每次一行
-    for key, _ in data.items():
-        sheet.cell(row=1, column=column, value=key)  # 写入值
-        column+= 1
+   # # 删除工作表中的所有旧数据
+    sheet.delete_rows(1,sheet.max_row)
+    sheet.delete_cols(1,sheet.max_column)
     workbook.save(excel_name)
     workbook.close()
 
@@ -43,11 +30,7 @@ def save2excel(excel_name, sheet_name, data):
         workbook.create_sheet(title=sheet_name)
     sheet = workbook[sheet_name]
 
-    # # 删除工作表中的所有旧数据
-    # for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row, max_col=2):
-    #     for cell in row:
-    #         cell.value = None
-
+ 
     # 获取工作表中的最后一行
     last_row = sheet.max_row + 1
     '''

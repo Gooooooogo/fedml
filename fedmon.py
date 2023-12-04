@@ -63,6 +63,7 @@ def main_fedmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_
           result=server.result()
 
           if model_type == 'linear':
+               
                tools.save2excel('result_all.xlsx','mnist_linear_mon',result)
           if model_type == 'cnn':
                tools.save2excel('result_all.xlsx','mnist_cnn_mon',result)
@@ -250,6 +251,12 @@ def main_fedmon_4(model_type,learning_rate, momentum, nesterov ,num_rounds, loca
 
 
 
-main_fedmon_4('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist',3)
-main_fedmon_4('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist',6)
-main_fedmon_4('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist',9)
+# main_fedmon_4('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist',3)
+# main_fedmon_4('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist',6)
+# main_fedmon_4('cnn',0.01,0.9,False,25,40,4,64,'nll_loss','mnist',9)
+tools.cleanexcel('result_all.xlsx','mnist_linear_mon')
+tools.cleanexcel('result_all.xlsx','mnist_log_mon')
+tools.cleanexcel('result_all.xlsx','mnist_cnn_mon')
+main_fedmon('linear',0.01,0,False,50,20,4,64,'MSE','mnist')
+main_fedmon('log',0.01,0,False,50,20,4,64,'CrossEntropy','mnist')
+main_fedmon('cnn',0.01,0,False,25,40,4,64,'nll_loss','mnist')

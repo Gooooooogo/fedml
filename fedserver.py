@@ -69,7 +69,7 @@ class Server():
         w_new={}
         for key,value in v.items():
             v_new[key]=w[key]-1* (w[key]-new_w_average[key])            
-            w_new[key]=v_new[key] + 0.9 * (v_new[key]-v[key] )
+            w_new[key]=v_new[key] + 0.5 * (v_new[key]-v[key] )
         self.v.update(v_new)
         self.global_model.load_state_dict(w_new)
     def aggregate_fednag(self):
@@ -112,9 +112,44 @@ class Server():
                             self.global_optimizer.state[p]['momentum_buffer']= torch.clone(column_means[idx]).detach()
                             idx+=1
     def aggregate_fastslowmon(self):
-        '''
-        '''
-        
+            learning_rate=self.learning_rate
+            momentum=self.momentum
+            nesterov=self.nesterov
+            averaged_weights = {}
+            # for key in self.global_model.state_dict().keys():
+            #     averaged_weights[key] = sum([i.local_model.state_dict()[key] for i in self.clients.values()]) / len(self.clients)
+            model_param_list = [[] for _ in range(len(self.clients))]
+            # get all locl_model's params
+            for clt,idx in zip(self.clients.values(),range(len(self.clients))):
+                    for param in clt.local_model.state_dict().values():
+                        model_param_list[idx].append(param)
+            average_list = tools.average(model_param_list)
+            #set global_model's params
+            idx=0
+            for key,value in self.global_model.state_dict().items():
+                averaged_weights[key]= average_list[idx]+ 0.5* (average_list[idx]-value)
+                idx+=1
+            self.global_model.load_state_dict(averaged_weights)
+
+            self.global_optimizer=optim.SGD(self.global_model.parameters(), lr=learning_rate, momentum=momentum, nesterov= nesterov)
+            # momentum_buffer_list : [[]*len(self.clients)]
+            if self.momentum != 0:
+                momentum_buffer_list = [[] for _ in range(len(self.clients))]
+                #get local_momentum_buffer
+                for clt , idx in zip(self.clients.values(), range(len(self.clients))):
+                    for group in clt.local_optimizer.param_groups:
+                        for p in group['params']:
+                            param_state = clt.local_optimizer.state[p]
+                            momentum_buffer_list[idx].append(torch.clone(param_state['momentum_buffer']).detach())
+                #average momentum_buffer
+                column_means = tools.average(momentum_buffer_list)
+                # set global_momentum_buffer
+                idx=0
+                for group in self.global_optimizer.param_groups:
+                        for p in group['params']:
+                            if momentum != 0:
+                                self.global_optimizer.state[p]['momentum_buffer']= torch.clone(column_means[idx]).detach()
+                                idx+=1
     def download_model(self, client_id):
         client=self.clients[client_id]
         client.local_model = copy.deepcopy(self.global_model)
@@ -161,7 +196,6 @@ class Server():
                         client.trained_idx=0
                     break
             client.loss =  loss.item()
-            print(client.local_optimizer.state_dict())
             #client.loss=loss_sum/client.local_round
     def local_train_fastslowmon(self, client_id):
             client=self.clients[client_id]
@@ -304,7 +338,7 @@ class Server():
         client.y =  weight_new  
         client.x = weight_estimate
 
-    def aggregate_fastslowmon(self):
+    def aggregate_fastslowmon_backup(self):
         weight_old = self.global_model.state_dict()
         
         new_y_local = [[] for _ in range(len(self.clients))]
@@ -341,7 +375,8 @@ class Server():
 
     def download_model_faseslowmon(self, client_id):
         client=self.clients[client_id]
-        client.x=copy.deepcopy(self.x)
-        client.y=copy.deepcopy(self.y_global)
+        client.local_model.load_state_dict(self.global_model.state_dict())
+        client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
+        client.local_model.to(self.device)
       
     
