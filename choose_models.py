@@ -50,7 +50,7 @@ class LogisticRegression(nn.Module):
         outputs = torch.sigmoid(self.linear(x))
         return outputs
 
-class cnn_back(nn.Module):
+class cnn(nn.Module):
     def __init__(self):
         super(cnn, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, 3, 1)

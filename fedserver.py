@@ -32,6 +32,7 @@ class Server():
         self.x= self.global_model.state_dict()
         self.y= self.global_model.state_dict()
         self.y_global=self.global_model.state_dict()
+        self.global_momentum=0
     def register(self,client):
           self.clients[client.id]= client
           
@@ -114,6 +115,7 @@ class Server():
     def aggregate_fastslowmon(self):
             learning_rate=self.learning_rate
             momentum=self.momentum
+            global_momentum=self.global_momentum
             nesterov=self.nesterov
             averaged_weights = {}
             # for key in self.global_model.state_dict().keys():
@@ -127,7 +129,7 @@ class Server():
             #set global_model's params
             idx=0
             for key,value in self.global_model.state_dict().items():
-                averaged_weights[key]= average_list[idx]+ 0.5* (average_list[idx]-value)
+                averaged_weights[key]= average_list[idx]+ global_momentum * (average_list[idx]-value)
                 idx+=1
             self.global_model.load_state_dict(averaged_weights)
 
@@ -162,7 +164,23 @@ class Server():
         client.local_model = copy.deepcopy(self.global_model)
         client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate)
         client.local_model.to(self.device)
-
+    def aggregate_slowmon(self):
+        averaged_weights = {}
+        # for key in self.global_model.state_dict().keys():
+        #     averaged_weights[key] = sum([i.local_model.state_dict()[key] for i in self.clients.values()]) / len(self.clients)
+        model_param_list = [[] for _ in range(len(self.clients))]
+        # get all locl_model's params
+        for clt,idx in zip(self.clients.values(),range(len(self.clients))):
+               for param in clt.local_model.state_dict().values():
+                    model_param_list[idx].append(param)
+        average_list = tools.average(model_param_list)
+        #set global_model's params
+        idx=0
+        for key,value in self.global_model.state_dict().items():
+                self.y[key]= self.y[key] * 0.5 + 100 * (value-average_list[idx])
+                self.x[key]= value- self.learning_rate * self.y[key]
+                idx+=1
+        self.global_model.load_state_dict(self.x)
     def local_train(self, client_id):
             client=self.clients[client_id]
             client.local_model.to(self.device)
@@ -379,4 +397,8 @@ class Server():
         client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
         client.local_model.to(self.device)
       
-    
+    def download_model_slowmon(self, client_id):
+        client=self.clients[client_id]
+        client.local_model.load_state_dict(self.global_model.state_dict())
+        client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate)
+        client.local_model.to(self.device)
