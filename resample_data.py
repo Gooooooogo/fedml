@@ -46,15 +46,38 @@ def data_distribution_0(dataset,num_classes,num_clients):
 
    
     return   client_datasets    
-def data_distribution_0_1(dataset,num_classes,num_clients):
-    client_datasets = []
-    choose_num=len(dataset)//num_clients
-    for i in range(num_clients):
-        start_idx = i * choose_num
-        end_idx = (i + 1) * choose_num
-        client_dataset = Subset(dataset, range(start_idx, end_idx))
-        client_datasets.append(client_dataset)
-    return   client_datasets  
+# def data_distribution_0_1(dataset,num_classes,num_clients):
+#     client_datasets = []
+#     choose_num=len(dataset)//num_clients
+#     for i in range(num_clients):
+#         start_idx = i * choose_num
+#         end_idx = (i + 1) * choose_num
+#         client_dataset = Subset(dataset, range(start_idx, end_idx))
+#         client_datasets.append(client_dataset)
+#     return   client_datasets  
+def data_distribution_0_1(dataset,num_classes, num_clients):
+    # 获取CIFAR-10数据集的类别数量
+    num_classes = len(np.unique(dataset.targets))
+    
+    # 初始化每个客户端的数据列表
+    client_datasets = [Subset(dataset, []) for _ in range(num_clients)]
+
+    # 遍历每个类别
+    for class_label in range(num_classes):
+        # 找到属于当前类别的所有样本的索引
+        class_indices = [i for i, label in enumerate(dataset.targets) if label == class_label]
+        
+        # # 将这些索引随机打乱
+        # np.random.shuffle(class_indices)
+        
+        # 平均分配给每个客户端
+        samples_per_client = len(class_indices) // num_clients
+        for i in range(num_clients):
+            start_idx = i * samples_per_client
+            end_idx = (i + 1) * samples_per_client
+            client_datasets[i].indices.extend(class_indices[start_idx:end_idx])
+
+    return client_datasets
 
 def data_distribution_1(dataset,num_classes,num_clients,a):
     print('start')

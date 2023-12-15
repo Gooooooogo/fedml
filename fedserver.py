@@ -14,7 +14,7 @@ import resample_data
 import choose_models 
 import tools
 class Server():
-    def __init__(self, object, learning_rate, momentum, nesterov, device):
+    def __init__(self, object, learning_rate, momentum, nesterov, device, global_momentum):
         self.clients={}
         self.global_model= object
         self.global_model.to(device)
@@ -32,7 +32,7 @@ class Server():
         self.x= self.global_model.state_dict()
         self.y= self.global_model.state_dict()
         self.y_global=self.global_model.state_dict()
-        self.global_momentum=0
+        self.global_momentum=global_momentum
     def register(self,client):
           self.clients[client.id]= client
           
@@ -70,7 +70,7 @@ class Server():
         w_new={}
         for key,value in v.items():
             v_new[key]=w[key]-1* (w[key]-new_w_average[key])            
-            w_new[key]=v_new[key] + 0.5 * (v_new[key]-v[key] )
+            w_new[key]=v_new[key] + self.global_momentum * (v_new[key]-v[key] )
         self.v.update(v_new)
         self.global_model.load_state_dict(w_new)
     def aggregate_fednag(self):
@@ -112,26 +112,56 @@ class Server():
                         if momentum != 0:
                             self.global_optimizer.state[p]['momentum_buffer']= torch.clone(column_means[idx]).detach()
                             idx+=1
+   
     def aggregate_fastslowmon(self):
             learning_rate=self.learning_rate
             momentum=self.momentum
             global_momentum=self.global_momentum
             nesterov=self.nesterov
             averaged_weights = {}
+            '''
             # for key in self.global_model.state_dict().keys():
             #     averaged_weights[key] = sum([i.local_model.state_dict()[key] for i in self.clients.values()]) / len(self.clients)
             model_param_list = [[] for _ in range(len(self.clients))]
-            # get all locl_model's params
+            # get all local_model's params
             for clt,idx in zip(self.clients.values(),range(len(self.clients))):
                     for param in clt.local_model.state_dict().values():
                         model_param_list[idx].append(param)
             average_list = tools.average(model_param_list)
             #set global_model's params
             idx=0
-            for key,value in self.global_model.state_dict().items():
-                averaged_weights[key]= average_list[idx]+ global_momentum * (average_list[idx]-value)
+            #这里的self.global_model.state_dict()是训练前的
+            old_global_model=copy.deepcopy(self.global_model.state_dict())
+            for key,value in old_global_model.items():
+                averaged_weights[key]= average_list[idx] + global_momentum * (average_list[idx]-value)
                 idx+=1
             self.global_model.load_state_dict(averaged_weights)
+            '''
+            new_w_local = [[] for _ in range(len(self.clients))]
+            # get all local_model's params
+            for clt,idx in zip(self.clients.values(),range(len(self.clients))):
+                for param in clt.local_model.state_dict().values():
+                        new_w_local[idx].append(param)
+            average_list = tools.average(new_w_local)
+            new_w_average={}
+            
+            idx=0
+            for key in self.global_model.state_dict().keys():
+                new_w_average[key]= average_list[idx].to(self.device)
+                idx+=1
+            w=self.global_model.state_dict()
+            v=self.v
+            #get v
+            v_new={}
+            w_new={}
+            for key,value in v.items():
+                v_new[key]=w[key]-1* (w[key]-new_w_average[key])            
+                w_new[key]=v_new[key] + self.global_momentum * (v_new[key]-v[key] )
+            self.v.update(v_new)
+            self.global_model.load_state_dict(w_new)
+
+
+
 
             self.global_optimizer=optim.SGD(self.global_model.parameters(), lr=learning_rate, momentum=momentum, nesterov= nesterov)
             # momentum_buffer_list : [[]*len(self.clients)]
@@ -152,18 +182,7 @@ class Server():
                             if momentum != 0:
                                 self.global_optimizer.state[p]['momentum_buffer']= torch.clone(column_means[idx]).detach()
                                 idx+=1
-    def download_model(self, client_id):
-        client=self.clients[client_id]
-        client.local_model = copy.deepcopy(self.global_model)
-        client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= self.nesterov)
-        #client.local_optimizer=copy.deepcopy(self.global_optimizer)
-        client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
-        client.local_model.to(self.device)
-    def download_model_mon(self, client_id):
-        client=self.clients[client_id]
-        client.local_model = copy.deepcopy(self.global_model)
-        client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate)
-        client.local_model.to(self.device)
+
     def aggregate_slowmon(self):
         averaged_weights = {}
         # for key in self.global_model.state_dict().keys():
@@ -283,7 +302,6 @@ class Server():
 
     def get_accuracy(self,model,test_loader):
       model.eval()
-      criterion = self.loss_func
       accuracy=0
       total=0
       correct=0
@@ -315,12 +333,6 @@ class Server():
         "accuracy": accuracy
         }
 
-        csv_filename = "result.csv"
-        # with open(csv_filename, "a", newline="") as csvfile:
-        #     fieldnames = data.keys()
-        #     csv_writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-
-        #     csv_writer.writerow(data)
 
         return data
 
@@ -402,3 +414,22 @@ class Server():
         client.local_model.load_state_dict(self.global_model.state_dict())
         client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate)
         client.local_model.to(self.device)
+
+    def download_model(self, client_id):
+        client=self.clients[client_id]
+        client.local_model = copy.deepcopy(self.global_model)
+        client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate, momentum=self.momentum, nesterov= self.nesterov)
+        #client.local_optimizer=copy.deepcopy(self.global_optimizer)
+        client.local_optimizer.load_state_dict(self.global_optimizer.state_dict())
+        client.local_model.to(self.device)
+    def download_model_mon(self, client_id):
+        client=self.clients[client_id]
+        client.local_model = copy.deepcopy(self.global_model)
+        client.local_optimizer = optim.SGD(client.local_model.parameters(), lr=self.learning_rate)
+        client.local_model.to(self.device)
+
+
+
+
+   
+        

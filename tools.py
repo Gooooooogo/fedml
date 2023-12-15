@@ -4,6 +4,25 @@ def average(list):
     averages = [sum(column) / len(column) for column in transposed]
     return averages
 
+def average_for_dict(list_of_dicts):
+        sums = {}
+        counts = {}
+
+        # 遍历列表中的每个字典
+        for d in list_of_dicts:
+            for key, value in d.items():
+                # 如果键不在 sums 中，将其添加，并将值和计数初始化为0
+                sums.setdefault(key, 0)
+                counts.setdefault(key, 0)
+                # 将值添加到总和
+                sums[key] += value
+                # 增加计数
+                counts[key] += 1
+        # 计算平均值
+        averages = {key: sums[key] / counts[key] for key in sums}
+        return averages
+
+
 def choose_device():
     if torch.cuda.is_available():
         device = torch.device("cuda")

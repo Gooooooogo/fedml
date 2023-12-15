@@ -1,4 +1,5 @@
 import csv
+import math
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -14,6 +15,8 @@ import choose_models
 import tools
 import fedserver
 import fedclient
+
+
 def main_fedslowmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset):
     device=tools.choose_device()
     model=choose_models.select_model(model_type)
@@ -33,56 +36,38 @@ def main_fedslowmon(model_type,learning_rate, momentum, nesterov ,num_rounds, lo
     server=fedserver.Server(model, learning_rate, momentum, nesterov, device)
     server.global_optimizer=optim.SGD(server.global_model.parameters(), lr=learning_rate)
     server.loss_function(loss_function)
-    client1= fedclient.Client(id= 'client1',data=train_loaders[0],local_round=local_round, device=device)
-    client2= fedclient.Client(id= 'client2',data=train_loaders[1],local_round=local_round, device=device)
-    client3= fedclient.Client(id= 'client3',data=train_loaders[2],local_round=local_round, device=device)
-    client4= fedclient.Client(id= 'client4',data=train_loaders[3],local_round=local_round, device=device)
-    client1.local_model=copy.deepcopy(model)
-    client2.local_model=copy.deepcopy(model)
-    client3.local_model=copy.deepcopy(model)
-    client4.local_model=copy.deepcopy(model)
-    client1.local_optimizer= optim.SGD(client1.local_model.parameters(), lr=learning_rate)
-    client2.local_optimizer= optim.SGD(client2.local_model.parameters(), lr=learning_rate)
-    client3.local_optimizer= optim.SGD(client3.local_model.parameters(), lr=learning_rate)
-    client4.local_optimizer= optim.SGD(client4.local_model.parameters(), lr=learning_rate)
-    server.register(client1)
-    server.register(client2)
-    server.register(client3)
-    server.register(client4)
-    
+    client_name_list=tools.set_client(num_clients)
+    clients=[]
+    for i in range(len(client_name_list)):
+         clients.append(fedclient.Client(id= client_name_list[i],data=train_loaders[i],local_round=local_round, device=device))
+         clients[i].local_model=copy.deepcopy(model)
+         clients[i].local_optimizer= optim.SGD(clients[i].local_model.parameters(), lr=learning_rate)
+         server.register(clients[i])
+    results=[]
     for i in range(num_rounds):
           print(i)
           server.current_global_round=i
-          server.local_train('client1')
-          server.local_train('client2')
-          server.local_train('client3')
-          server.local_train('client4')
+          for i in range(len(client_name_list)):
+               server.local_train(client_name_list[i])
           server.aggregate_slowmon()
-          server.download_model_slowmon('client1')   
-          server.download_model_slowmon('client2')
-          server.download_model_slowmon('client3')
-          server.download_model_slowmon('client4')
+          for i in range(len(client_name_list)):
+               server.download_model_slowmon(client_name_list[i]) 
+
           server.loss=server.get_loss(server.global_model,test_loader)
           server.acc=server.get_accuracy(server.global_model,test_loader)
           print(server.acc)
           result=server.result()
-          if model_type == 'linear':
-               tools.save2excel('result_all.xlsx','mnist_linear_slowmon',result)
-          if model_type == 'log':
-               tools.save2excel('result_all.xlsx','mnist_log_slowmon',result)
-          if model_type == 'cnn' and dataset== 'mnist':
-               tools.save2excel('result_all.xlsx','mnist_cnn_slowmon',result)
-          if model_type == 'cnn' and dataset== 'cifar10':
-               tools.save2excel('result_all.xlsx','cifar10_cnn_slowmon',result)
-          if model_type == 'vgg16' and dataset== 'cifar10':
-               tools.save2excel('result_all.xlsx','cifar10_vgg_slowmon',result)
-tools.cleanexcel('result_all.xlsx','mnist_linear_slowmon')
-# tools.cleanexcel('result_all.xlsx','mnist_log_slowmon')
-# tools.cleanexcel('result_all.xlsx','mnist_cnn_slowmon')
-#tools.cleanexcel('result_all.xlsx','cifar10_vgg_fastslowmon')
-main_fedslowmon('cnn',0.01,0,False,25,40,4,64,'nll_loss','mnist')
-main_fedslowmon('linear',0.01,0,False,50,20,4,64,'MSE','mnist')
-main_fedslowmon('log',0.01,0,False,50,20,4,64,'CrossEntropy','mnist')
+          results.append(result)
 
-#main_fedfastslowmon('cnn',0.01,0.5,True,25,40,4,64,'nll_loss','cifar10')
-#main_fedfastslowmon('vgg16',0.01,0.5,True,25,40,4,64,'CrossEntropy','cifar10')
+    return results
+    
+#
+
+T=[10,20,40,80,160]
+N=[2,4,8,16]
+for i in range(5):
+    for j in range(4):
+          results=main_fedslowmon('cnn',0.01,0,False,math.ceil(1000/T[i]),T[i],N[j],64,'nll_loss','mnist')
+          sheetname='slowmo_'+str(N[j])+'_'+str(T[i])
+          tools.cleanexcel('result_all.xlsx','sheetname')
+          tools.save2excel_batch('result_all.xlsx',sheetname,results)
