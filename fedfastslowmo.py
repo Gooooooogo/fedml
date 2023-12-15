@@ -76,7 +76,7 @@ local_monmentum_list=[0.00001,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
 global_momentum_list=[0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
 for i in range(len(local_monmentum_list)):
     for j in  range(len(global_momentum_list)):
-        if 0==0:
+        if i>7:
                result=main_fedfastslowmon('cnn',0.01,local_monmentum_list[i],True,25,40,4,64,'nll_loss','mnist',global_momentum_list[j])
                sheetname='fastslowmo_'+str(local_monmentum_list[i])+'_'+str(global_momentum_list[j])
                #tools.cleanexcel('result_N_T.xlsx',sheetname)
