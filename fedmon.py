@@ -63,9 +63,9 @@ def main_fedmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_
 #         result=main_fedmon('cnn',0.01,0,False,math.ceil(1000/T[i]),T[i],N[j],64,'nll_loss','mnist')
 #         sheetname='fedmo_'+str(num_clients)+'_'+str(local_round)
 #         tools.save2excel_batch('result_N_T.xlsx',sheetname,results)
-global_momentum=[0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
-for i in range(10):
-        results=main_fedmon('cnn',0.01,0,False,25,40,4,64,'nll_loss','mnist',global_momentum[i])
-        sheetname='fedmo_'+str(global_momentum[i])
-        tools.save2excel_batch('result_fedmon_momentum.xlsx',sheetname,results)
+# global_momentum=[0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+# for i in range(10):
+#         results=main_fedmon('cnn',0.01,0,False,25,40,4,64,'nll_loss','mnist',global_momentum[i])
+#         sheetname='fedmo_'+str(global_momentum[i])
+#         tools.save2excel_batch('result_fedmon_momentum.xlsx',sheetname,results)
 

@@ -16,7 +16,7 @@ import tools
 import fedserver
 import fedclient
 
-def main_nag(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset):
+def main_nag(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset,global_momentum):
     device=tools.choose_device()
     model=choose_models.select_model(model_type)
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
@@ -32,7 +32,7 @@ def main_nag(model_type,learning_rate, momentum, nesterov ,num_rounds, local_rou
     #server and client
     model=copy.deepcopy(model)
     model.to(device)
-    server=fedserver.Server(model, learning_rate, momentum, nesterov, device,0)
+    server=fedserver.Server(model, learning_rate, momentum, nesterov, device,global_momentum)
     server.global_optimizer=optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum, nesterov= nesterov)
     server.loss_function(loss_function)
     client_name_list=tools.set_client(num_clients)
@@ -63,8 +63,8 @@ def main_nag(model_type,learning_rate, momentum, nesterov ,num_rounds, local_rou
 #         sheetname='fedavg_'+str(num_clients)+'_'+str(local_round)
 #         tools.save2excel_batch('result_N_T.xlsx',sheetname,results)
 
-momentum=[0.0000001,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
-for i in range(10):
-    results=main_nag('cnn',0.01,momentum[i],True,25,40,4,64,'nll_loss','mnist')
-    sheetname='fedavg_'+str(momentum[i])
-    tools.save2excel_batch('result_fednag_momentum.xlsx',sheetname,results)
+# momentum=[0.0000001,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+# for i in range(10):
+#     results=main_nag('cnn',0.01,momentum[i],True,25,40,4,64,'nll_loss','mnist')
+#     sheetname='fedavg_'+str(momentum[i])
+#     tools.save2excel_batch('result_fednag_momentum.xlsx',sheetname,results)

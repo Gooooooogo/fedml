@@ -17,7 +17,7 @@ import fedserver
 import fedclient
 
 
-def main_fedslowmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset):
+def main_fedslowmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset ,global_momentum):
     device=tools.choose_device()
     model=choose_models.select_model(model_type)
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
@@ -33,7 +33,7 @@ def main_fedslowmon(model_type,learning_rate, momentum, nesterov ,num_rounds, lo
     #server and client
     model=copy.deepcopy(model)
     model.to(device)
-    server=fedserver.Server(model, learning_rate, momentum, nesterov, device)
+    server=fedserver.Server(model, learning_rate, momentum, nesterov, device, global_momentum)
     server.global_optimizer=optim.SGD(server.global_model.parameters(), lr=learning_rate)
     server.loss_function(loss_function)
     client_name_list=tools.set_client(num_clients)
@@ -63,11 +63,18 @@ def main_fedslowmon(model_type,learning_rate, momentum, nesterov ,num_rounds, lo
     
 #
 
-T=[10,20,40,80,160]
-N=[2,4,8,16]
-for i in range(5):
-    for j in range(4):
-          results=main_fedslowmon('cnn',0.01,0,False,math.ceil(1000/T[i]),T[i],N[j],64,'nll_loss','mnist')
-          sheetname='slowmo_'+str(N[j])+'_'+str(T[i])
-          tools.cleanexcel('result_all.xlsx','sheetname')
-          tools.save2excel_batch('result_all.xlsx',sheetname,results)
+# T=[10,20,40,80,160]
+# N=[2,4,8,16]
+# for i in range(5):
+#     for j in range(4):
+#           results=main_fedslowmon('cnn',0.01,0,False,math.ceil(1000/T[i]),T[i],N[j],64,'nll_loss','mnist')
+#           sheetname='slowmo_'+str(N[j])+'_'+str(T[i])
+#           tools.cleanexcel('result_T_N.xlsx','sheetname')
+# #           tools.save2excel_batch('result_T_N.xlsx',sheetname,results)
+# momentums= [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+# momentums=[0.3]
+# for momentum in momentums:
+#      results=main_fedslowmon('cnn',0.01,0,False,25,40,4,64,'nll_loss','mnist', momentum)
+#      sheetname='slowmo_'+str(momentum)
+#      tools.save2excel_batch('result_fedslowmo_momentum.xlsx',sheetname,results)
+     

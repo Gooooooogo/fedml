@@ -196,7 +196,7 @@ class Server():
         #set global_model's params
         idx=0
         for key,value in self.global_model.state_dict().items():
-                self.y[key]= self.y[key] * 0.5 + 100 * (value-average_list[idx])
+                self.y[key]= self.y[key] * self.global_momentum + 100 * (value-average_list[idx])
                 self.x[key]= value- self.learning_rate * self.y[key]
                 idx+=1
         self.global_model.load_state_dict(self.x)

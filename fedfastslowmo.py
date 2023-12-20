@@ -72,13 +72,13 @@ def main_fedfastslowmon(model_type,learning_rate, momentum, nesterov ,num_rounds
 #             result=main_fedfastslowmon('cnn',0.01,0.5,True,math.ceil(1000/T[i]),T[i],N[j],64,'nll_loss','mnist')
 #             sheetname='fastslowmo_'+str(N[j])+'_'+str(T[i])
 #             tools.save2excel('result_N_T.xlsx',sheetname,result)
-local_monmentum_list=[0.00001,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
-global_momentum_list=[0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
-for i in range(len(local_monmentum_list)):
-    for j in  range(len(global_momentum_list)):
-        if i>7:
-               result=main_fedfastslowmon('cnn',0.01,local_monmentum_list[i],True,25,40,4,64,'nll_loss','mnist',global_momentum_list[j])
-               sheetname='fastslowmo_'+str(local_monmentum_list[i])+'_'+str(global_momentum_list[j])
-               #tools.cleanexcel('result_N_T.xlsx',sheetname)
-               tools.save2excel_batch('result_N_T.xlsx',sheetname,result)
+# local_monmentum_list=[0.00001,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+# global_momentum_list=[0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
+# for i in range(len(local_monmentum_list)):
+#     for j in  range(len(global_momentum_list)):
+#         if i>7:
+#                result=main_fedfastslowmon('cnn',0.01,local_monmentum_list[i],True,25,40,4,64,'nll_loss','mnist',global_momentum_list[j])
+#                sheetname='fastslowmo_'+str(local_monmentum_list[i])+'_'+str(global_momentum_list[j])
+#                #tools.cleanexcel('result_N_T.xlsx',sheetname)
+#                tools.save2excel_batch('result_N_T.xlsx',sheetname,result)
 
