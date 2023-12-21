@@ -18,7 +18,7 @@ import fedserver
 import fedclient
 
 
-def main_fedfastslowmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset,global_momentumt,ch):
+def main_fedfastslowmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset,global_momentum,ch):
     #tools.cleanexcel('/content/drive/MyDrive/Colab Notebooks/fedml/result_N_T.xlsx','fastslowmo_'+str(num_clients)+'_'+str(local_round))
     #tools.cleanexcel('result_N_T.xlsx','fastslowmo_'+str(num_clients)+'_'+str(local_round))
     device=tools.choose_device()
