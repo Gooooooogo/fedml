@@ -16,13 +16,13 @@ import tools
 import fedserver
 import fedclient
 
-def main_nag(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset,global_momentum):
+def main_nag(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset,global_momentum,ch):
     device=tools.choose_device()
     model=choose_models.select_model(model_type)
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= resample_data.data_distribution_0_1(train_dataset,len(train_dataset.classes), num_clients)
+    client_datasets= resample_data.data_distribution_3(train_dataset,len(train_dataset.classes), num_clients,ch)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)

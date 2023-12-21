@@ -192,7 +192,9 @@ def data_distribution_3(dataset,num_classes,num_clients,ch):
          client_class_ch=[[0,1,2,3,4,5,6,7,8],
                         [3,4,5,6,7,8,9,1,2],
                         [4,5,6,7,8,9,1,2,0],
-                        [0,1,3,4,5,6,2,8,9]]  
+                        [0,1,3,4,5,6,2,8,9]]
+    if ch==10:
+        return data_distribution_0_1(dataset,num_classes, num_clients)
     for i in range(num_clients):
         for j in range(ch):
             class_data = data[labels == client_class_ch[i][j]]

@@ -16,13 +16,13 @@ import fedserver
 import fedclient
 
 
-def main_fedmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset, global_momentum):
+def main_fedmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_round, num_clients ,batch_size, loss_function,dataset, global_momentum,ch):
     device=tools.choose_device()
     model=choose_models.select_model(model_type)
     train_dataset, test_dataset= choose_models.select_dataset(dataset)
     model.to(device)
     # # Create data loaders for each client
-    client_datasets= resample_data.data_distribution_0_1(train_dataset,len(train_dataset.classes), num_clients)
+    client_datasets= resample_data.data_distribution_3(train_dataset,len(train_dataset.classes), num_clients,ch)
     train_loaders = []
     for i in range(num_clients):
         train_loader = torch.utils.data.DataLoader(dataset=client_datasets[i], batch_size=batch_size, shuffle=True)
@@ -44,10 +44,10 @@ def main_fedmon(model_type,learning_rate, momentum, nesterov ,num_rounds, local_
 
     results=[]
     for i in range(num_rounds):
-          for i in range(len(client_name_list)): 
-            server.download_model_mon(client_name_list[i])   
+          for j in range(len(client_name_list)): 
+            server.download_model_mon(client_name_list[j])   
             server.current_global_round=i
-            server.local_train(client_name_list[i])
+            server.local_train(client_name_list[j])
           server.aggregate_fedmon()
 
           server.loss=server.get_loss(server.global_model,test_loader)
